@@ -1,12 +1,14 @@
 package app
 
 import (
-	"log"
+	"context"
+	"errors"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/joho/godotenv"
 	"github.com/seminhnva/gin-layered-architecture/internal/config"
 	"github.com/seminhnva/gin-layered-architecture/internal/routes"
+	applog "github.com/seminhnva/gin-layered-architecture/pkg/logger"
 )
 
 type Module interface {
@@ -16,25 +18,65 @@ type Module interface {
 type Application struct {
 	config *config.Config
 	router *gin.Engine
+	server *http.Server
 	module []Module
 }
 
 func NewApplication(cfg *config.Config) *Application {
-	r := gin.Default()
-	loadEnv()
+	router := gin.New()
 	modules := []Module{
 		NewUserModule(),
 	}
-	routes.SetUpRouter(r, getModuleRoute(modules)...)
+
+	routes.SetUpRouter(router, cfg, getModuleRoute(modules)...)
+
+	server := &http.Server{
+		Addr:              cfg.ServerAddress,
+		Handler:           router,
+		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
+		ReadTimeout:       cfg.ReadTimeout,
+		WriteTimeout:      cfg.WriteTimeout,
+		IdleTimeout:       cfg.IdleTimeout,
+	}
+
 	return &Application{
 		config: cfg,
-		router: r,
+		router: router,
+		server: server,
 		module: modules,
 	}
 }
 
-func (a *Application) Run() error {
-	return a.router.Run(a.config.ServerAdress)
+func (a *Application) Run(ctx context.Context) error {
+	errCh := make(chan error, 1)
+
+	go func() {
+		applog.Infof("HTTP server listening on %s", a.config.ServerAddress)
+		errCh <- a.server.ListenAndServe()
+	}()
+
+	select {
+	case err := <-errCh:
+		if errors.Is(err, http.ErrServerClosed) {
+			return nil
+		}
+		return err
+	case <-ctx.Done():
+		applog.Infof("Shutting down HTTP server")
+
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), a.config.ShutdownTimeout)
+		defer cancel()
+
+		if err := a.server.Shutdown(shutdownCtx); err != nil {
+			return err
+		}
+
+		err := <-errCh
+		if errors.Is(err, http.ErrServerClosed) {
+			return nil
+		}
+		return err
+	}
 }
 
 func getModuleRoute(modules []Module) []routes.Route {
@@ -43,12 +85,4 @@ func getModuleRoute(modules []Module) []routes.Route {
 		routeList[i] = module.Routes()
 	}
 	return routeList
-}
-
-func loadEnv() {
-	err := godotenv.Load("../../.env")
-	if err != nil {
-		log.Println("No .env file found")
-	}
-
 }

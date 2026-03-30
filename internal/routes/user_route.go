@@ -3,6 +3,7 @@ package routes
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/seminhnva/gin-layered-architecture/internal/api/handler"
+	"github.com/seminhnva/gin-layered-architecture/internal/middleware"
 )
 
 type UserRoute struct {
@@ -17,6 +18,7 @@ func NewUserRoutes(handler *handler.UserHandler) *UserRoute {
 
 func (ur *UserRoute) Register(rg *gin.RouterGroup) {
 	users := rg.Group("/users")
+	users.Use(middleware.Auth())
 	{
 		users.GET("", ur.handler.GetUsers)
 		users.POST("", ur.handler.CreateUser)
