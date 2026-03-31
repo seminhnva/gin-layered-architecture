@@ -3,12 +3,14 @@ package app
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/seminhnva/gin-layered-architecture/internal/config"
 	"github.com/seminhnva/gin-layered-architecture/internal/routes"
+	applogger "github.com/seminhnva/gin-layered-architecture/pkg/logger"
 )
 
 type Module interface {
@@ -22,12 +24,25 @@ type Application struct {
 	server *http.Server
 }
 
-func NewApplication(cfg *config.Config) *Application {
+func NewApplication(cfg *config.Config) (*Application, error) {
 	r := gin.New()
 	modules := []Module{
 		NewUserModule(),
 	}
-	routes.SetUpRouter(r, getModuleRoute(modules)...)
+	httpLogger, err := applogger.NewFileLogger(
+		cfg.Logger.LogFilePath,
+		cfg.Logger.LogLevel,
+		cfg.Logger.LogMaxSizeMB,
+		cfg.Logger.LogMaxBackups,
+		cfg.Logger.LogMaxAgeDays,
+		cfg.Logger.LogCompress,
+		cfg.Logger.LocalTime,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("init http logger: %w", err)
+	}
+
+	routes.SetUpRouter(r, httpLogger, getModuleRoute(modules)...)
 	server := &http.Server{
 		Addr:              cfg.HTTPServer.ServerAddress,
 		Handler:           r,
@@ -42,7 +57,7 @@ func NewApplication(cfg *config.Config) *Application {
 		router: r,
 		module: modules,
 		server: server,
-	}
+	}, nil
 }
 
 func (a *Application) Run(ctx context.Context) error {

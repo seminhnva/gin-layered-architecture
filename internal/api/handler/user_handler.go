@@ -14,7 +14,10 @@ func NewUserHandler(service service.UserService) *UserHandler {
 		service: service}
 }
 func (uh *UserHandler) GetUsers(ctx *gin.Context) {
-	uh.service.GetUser()
+	// uh.service.GetUser()
+	ctx.JSON(200, gin.H{
+		"data": "ok",
+	})
 }
 func (uh *UserHandler) CreateUser(ctx *gin.Context) {
 	uh.service.CreateUser()
