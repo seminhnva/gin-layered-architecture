@@ -10,11 +10,12 @@ type Route interface {
 	Register(rg *gin.RouterGroup)
 }
 
-func SetUpRouter(r *gin.Engine, httpLogger *zerolog.Logger, routes ...Route) {
+func SetUpRouter(corsAllowedOrigins []string, r *gin.Engine, httpLogger *zerolog.Logger, routes ...Route) {
 	r.Use(
 		middleware.RequestID(),
 		middleware.Trace(),
 		middleware.Logger(httpLogger),
+		middleware.CORS(corsAllowedOrigins),
 	)
 	api := r.Group("/api/v1")
 	for _, route := range routes {

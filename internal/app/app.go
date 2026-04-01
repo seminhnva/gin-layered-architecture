@@ -42,7 +42,7 @@ func NewApplication(cfg *config.Config) (*Application, error) {
 		return nil, fmt.Errorf("init http logger: %w", err)
 	}
 
-	routes.SetUpRouter(r, httpLogger, getModuleRoute(modules)...)
+	routes.SetUpRouter(cfg.CORSAllowedOrigins, r, httpLogger, getModuleRoute(modules)...)
 	server := &http.Server{
 		Addr:              cfg.HTTPServer.ServerAddress,
 		Handler:           r,
