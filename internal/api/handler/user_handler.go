@@ -13,21 +13,21 @@ func NewUserHandler(service service.UserService) *UserHandler {
 	return &UserHandler{
 		service: service}
 }
-func (uh *UserHandler) GetUsers(ctx *gin.Context) {
+func (uh *UserHandler) GetUsers(c *gin.Context) {
 	// uh.service.GetUser()
-	ctx.JSON(200, gin.H{
+	c.JSON(200, gin.H{
 		"data": "ok",
 	})
 }
-func (uh *UserHandler) CreateUser(ctx *gin.Context) {
+func (uh *UserHandler) CreateUser(c *gin.Context) {
 	uh.service.CreateUser()
 }
-func (uh *UserHandler) GetUserByUUID(ctx *gin.Context) {
+func (uh *UserHandler) GetUserByUUID(c *gin.Context) {
 	uh.service.GetUserByUUID()
 }
-func (uh *UserHandler) UpdateUser(ctx *gin.Context) {
+func (uh *UserHandler) UpdateUser(c *gin.Context) {
 	uh.service.UpdateUser()
 }
-func (uh *UserHandler) DeleteUser(ctx *gin.Context) {
+func (uh *UserHandler) DeleteUser(c *gin.Context) {
 	uh.service.DeleteUser()
 }

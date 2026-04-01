@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"bytes"
-	"context"
 	"io"
 	"net/url"
 	"strings"
@@ -75,23 +74,23 @@ type fileInfo struct {
 	ContentType string `json:"content_type"`
 }
 
-func parseRequestBody(ctx *gin.Context) (body any, files []fileInfo) {
-	contentType := ctx.GetHeader("Content-Type")
+func parseRequestBody(c *gin.Context) (body any, files []fileInfo) {
+	contentType := c.GetHeader("Content-Type")
 
 	switch {
 	case strings.HasPrefix(contentType, "multipart/form-data"):
 		formBody := make(map[string]any)
-		if err := ctx.Request.ParseMultipartForm(32 << 20); err != nil || ctx.Request.MultipartForm == nil {
+		if err := c.Request.ParseMultipartForm(32 << 20); err != nil || c.Request.MultipartForm == nil {
 			return
 		}
-		for k, v := range ctx.Request.MultipartForm.Value {
+		for k, v := range c.Request.MultipartForm.Value {
 			if len(v) == 1 {
 				formBody[k] = v[0]
 			} else {
 				formBody[k] = v
 			}
 		}
-		for field, fs := range ctx.Request.MultipartForm.File {
+		for field, fs := range c.Request.MultipartForm.File {
 			for _, f := range fs {
 				files = append(files, fileInfo{
 					Field:       field,
@@ -104,7 +103,7 @@ func parseRequestBody(ctx *gin.Context) (body any, files []fileInfo) {
 		body = formBody
 
 	case strings.HasPrefix(contentType, "application/json"):
-		raw, err := readBody(ctx)
+		raw, err := readBody(c)
 		if err != nil {
 			return
 		}
@@ -112,7 +111,7 @@ func parseRequestBody(ctx *gin.Context) (body any, files []fileInfo) {
 
 	case strings.HasPrefix(contentType, "application/x-www-form-urlencoded"):
 		formBody := make(map[string]any)
-		raw, err := readBody(ctx)
+		raw, err := readBody(c)
 		if err != nil {
 			return
 		}
@@ -127,7 +126,7 @@ func parseRequestBody(ctx *gin.Context) (body any, files []fileInfo) {
 		body = formBody
 
 	default:
-		raw, err := readBody(ctx)
+		raw, err := readBody(c)
 		if err != nil {
 			return
 		}
@@ -138,12 +137,12 @@ func parseRequestBody(ctx *gin.Context) (body any, files []fileInfo) {
 
 	return
 }
-func readBody(ctx *gin.Context) ([]byte, error) {
-	raw, err := io.ReadAll(io.LimitReader(ctx.Request.Body, int64(maxRequestBodySize)))
+func readBody(c *gin.Context) ([]byte, error) {
+	raw, err := io.ReadAll(io.LimitReader(c.Request.Body, int64(maxRequestBodySize)))
 	if err != nil {
 		return nil, err
 	}
-	ctx.Request.Body = io.NopCloser(bytes.NewBuffer(raw))
+	c.Request.Body = io.NopCloser(bytes.NewBuffer(raw))
 	return raw, nil
 }
 
@@ -166,24 +165,24 @@ func parseResponseBody(contentType, raw string) any {
 }
 
 func Logger(httpLogger *zerolog.Logger) gin.HandlerFunc {
-	return func(ctx *gin.Context) {
+	return func(c *gin.Context) {
 		start := time.Now()
 
-		reqBody, files := parseRequestBody(ctx)
+		reqBody, files := parseRequestBody(c)
 
 		rw := &responseWriter{
-			ResponseWriter: ctx.Writer,
+			ResponseWriter: c.Writer,
 			body:           &bytes.Buffer{},
 			limit:          maxResponseBodyLogSize,
 		}
-		ctx.Writer = rw
+		c.Writer = rw
 
-		ctx.Next()
+		c.Next()
 
-		status := ctx.Writer.Status()
+		status := c.Writer.Status()
 
 		respRaw := rw.LoggedBody()
-		respContentType := ctx.Writer.Header().Get("Content-Type")
+		respContentType := c.Writer.Header().Get("Content-Type")
 		respBody := parseResponseBody(respContentType, respRaw)
 
 		var logEvent *zerolog.Event
@@ -197,24 +196,24 @@ func Logger(httpLogger *zerolog.Logger) gin.HandlerFunc {
 		}
 
 		e := logEvent.
-			Str("trace_id", GetTraceId(ctx.Request.Context())).
-			Str("request_id", GetRequestID(ctx)).
+			Str("trace_id", GetTraceID(c.Request.Context())).
+			Str("request_id", GetRequestID(c)).
 			// Request
-			Str("method", ctx.Request.Method).
-			Str("path", ctx.Request.URL.Path).
-			Str("query", ctx.Request.URL.RawQuery).
-			Str("protocol", ctx.Request.Proto).
-			Str("host", ctx.Request.Host).
-			Str("client_ip", ctx.ClientIP()).
-			Str("remote_addr", ctx.Request.RemoteAddr).
-			Str("user_agent", ctx.Request.UserAgent()).
-			Str("referer", ctx.Request.Referer()).
-			Str("content_type", ctx.GetHeader("Content-Type")).
-			Int64("content_length", ctx.Request.ContentLength).
+			Str("method", c.Request.Method).
+			Str("path", c.Request.URL.Path).
+			Str("query", c.Request.URL.RawQuery).
+			Str("protocol", c.Request.Proto).
+			Str("host", c.Request.Host).
+			Str("client_ip", c.ClientIP()).
+			Str("remote_addr", c.Request.RemoteAddr).
+			Str("user_agent", c.Request.UserAgent()).
+			Str("referer", c.Request.Referer()).
+			Str("content_type", c.GetHeader("Content-Type")).
+			Int64("content_length", c.Request.ContentLength).
 			Interface("request_body", sanitizeValue(reqBody, sensitiveFields)).
 			// Response
 			Int("status", status).
-			Int("bytes_out", ctx.Writer.Size()).
+			Int("bytes_out", c.Writer.Size()).
 			Str("response_content_type", respContentType).
 			Interface("response_body", respBody).
 			Int64("latency_ms", time.Since(start).Milliseconds())
@@ -225,15 +224,4 @@ func Logger(httpLogger *zerolog.Logger) gin.HandlerFunc {
 
 		e.Msg("HTTP")
 	}
-}
-
-type contextKey string
-
-const TraceIdKey contextKey = "trace_id"
-
-func GetTraceId(ctx context.Context) string {
-	if traceId, ok := ctx.Value(TraceIdKey).(string); ok {
-		return traceId
-	}
-	return ""
 }

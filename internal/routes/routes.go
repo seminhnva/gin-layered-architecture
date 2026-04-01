@@ -13,6 +13,7 @@ type Route interface {
 func SetUpRouter(r *gin.Engine, httpLogger *zerolog.Logger, routes ...Route) {
 	r.Use(
 		middleware.RequestID(),
+		middleware.Trace(),
 		middleware.Logger(httpLogger),
 	)
 	api := r.Group("/api/v1")

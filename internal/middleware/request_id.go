@@ -11,19 +11,19 @@ const (
 )
 
 func RequestID() gin.HandlerFunc {
-	return (func(ctx *gin.Context) {
-		requestID := ctx.GetHeader(RequestIDHeader)
+	return (func(c *gin.Context) {
+		requestID := c.GetHeader(RequestIDHeader)
 		if requestID == "" {
 			requestID = uuid.New().String()
 		}
-		ctx.Set(requestIDContextKey, requestID)
-		ctx.Header(RequestIDHeader, requestID)
-		ctx.Next()
+		c.Set(requestIDContextKey, requestID)
+		c.Header(RequestIDHeader, requestID)
+		c.Next()
 	})
 }
 
-func GetRequestID(ctx *gin.Context) string {
-	value, exists := ctx.Get(requestIDContextKey)
+func GetRequestID(c *gin.Context) string {
+	value, exists := c.Get(requestIDContextKey)
 	if !exists {
 		return ""
 	}
