@@ -1,12 +1,18 @@
 package app
 
 import (
-	"log"
+	"context"
+	"errors"
+	"fmt"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/joho/godotenv"
+	"github.com/rs/zerolog"
+	"github.com/seminhnva/gin-layered-architecture/internal/bootstrap"
 	"github.com/seminhnva/gin-layered-architecture/internal/config"
+	"github.com/seminhnva/gin-layered-architecture/internal/constants"
 	"github.com/seminhnva/gin-layered-architecture/internal/routes"
+	"github.com/seminhnva/gin-layered-architecture/pkg/logger"
 )
 
 type Module interface {
@@ -17,24 +23,72 @@ type Application struct {
 	config *config.Config
 	router *gin.Engine
 	module []Module
+	server *http.Server
 }
 
-func NewApplication(cfg *config.Config) *Application {
-	r := gin.Default()
-	loadEnv()
+func NewApplication(cfg *config.Config) (*Application, error) {
+	r := gin.New()
 	modules := []Module{
 		NewUserModule(),
 	}
-	routes.SetUpRouter(r, getModuleRoute(modules)...)
+	logOpts := bootstrap.NewLoggerOptions(cfg.Logger)
+
+	httpLogger, err := logger.InitLogger(string(constants.HttpLogFilePath),
+		logOpts,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("init http logger: %w", err)
+	}
+	recoveryLogger, err := logger.InitLogger(string(constants.RecoveryLogFilePath), logOpts)
+	if err != nil {
+		return nil, fmt.Errorf("init recovery logger: %w", err)
+	}
+
+	routes.SetUpRouter(cfg.CORSAllowedOrigins, r, httpLogger, recoveryLogger, getModuleRoute(modules)...)
+	server := &http.Server{
+		Addr:              cfg.HTTPServer.ServerAddress,
+		Handler:           r,
+		ReadHeaderTimeout: cfg.HTTPServer.ReadHeaderTimeout,
+		ReadTimeout:       cfg.HTTPServer.ReadTimeout,
+		WriteTimeout:      cfg.HTTPServer.WriteTimeout,
+		IdleTimeout:       cfg.HTTPServer.IdleTimeout,
+	}
+
 	return &Application{
 		config: cfg,
 		router: r,
 		module: modules,
-	}
+		server: server,
+	}, nil
 }
 
-func (a *Application) Run() error {
-	return a.router.Run(a.config.ServerAdress)
+func (a *Application) Run(ctx context.Context, appLogger *zerolog.Logger) error {
+	errCh := make(chan error, 1)
+	go func() {
+		appLogger.Info().Msgf("HTTP Server listening on %s", a.config.HTTPServer.ServerAddress)
+		errCh <- a.server.ListenAndServe()
+	}()
+	select {
+	case err := <-errCh:
+		if errors.Is(err, http.ErrServerClosed) {
+			return nil
+		}
+		return err
+	case <-ctx.Done():
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), a.config.HTTPServer.ShutdownTimeout)
+		defer cancel()
+
+		if err := a.server.Shutdown(shutdownCtx); err != nil {
+			return err
+		}
+
+		err := <-errCh
+		if errors.Is(err, http.ErrServerClosed) {
+			appLogger.Info().Msg("Server exited gracefully")
+			return nil
+		}
+		return err
+	}
 }
 
 func getModuleRoute(modules []Module) []routes.Route {
@@ -43,12 +97,4 @@ func getModuleRoute(modules []Module) []routes.Route {
 		routeList[i] = module.Routes()
 	}
 	return routeList
-}
-
-func loadEnv() {
-	err := godotenv.Load("../../.env")
-	if err != nil {
-		log.Println("No .env file found")
-	}
-
 }
