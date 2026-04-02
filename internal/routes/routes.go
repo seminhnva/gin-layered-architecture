@@ -10,8 +10,9 @@ type Route interface {
 	Register(rg *gin.RouterGroup)
 }
 
-func SetUpRouter(corsAllowedOrigins []string, r *gin.Engine, httpLogger *zerolog.Logger, routes ...Route) {
+func SetUpRouter(corsAllowedOrigins []string, r *gin.Engine, httpLogger, recoveryLogger *zerolog.Logger, routes ...Route) {
 	r.Use(
+		middleware.Recover(recoveryLogger),
 		middleware.RequestID(),
 		middleware.Trace(),
 		middleware.Logger(httpLogger),

@@ -8,9 +8,17 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/rs/zerolog"
 	"github.com/seminhnva/gin-layered-architecture/internal/config"
 	"github.com/seminhnva/gin-layered-architecture/internal/routes"
 	applogger "github.com/seminhnva/gin-layered-architecture/pkg/logger"
+)
+
+type logFilePath string
+
+const (
+	httpLogFilePath     logFilePath = "app.log"
+	recoveryLogFilePath logFilePath = "recovery.log"
 )
 
 type Module interface {
@@ -29,20 +37,16 @@ func NewApplication(cfg *config.Config) (*Application, error) {
 	modules := []Module{
 		NewUserModule(),
 	}
-	httpLogger, err := applogger.NewFileLogger(
-		cfg.Logger.LogFilePath,
-		cfg.Logger.LogLevel,
-		cfg.Logger.LogMaxSizeMB,
-		cfg.Logger.LogMaxBackups,
-		cfg.Logger.LogMaxAgeDays,
-		cfg.Logger.LogCompress,
-		cfg.Logger.LocalTime,
-	)
+	httpLogger, err := initLogger(string(httpLogFilePath), cfg.Logger)
 	if err != nil {
 		return nil, fmt.Errorf("init http logger: %w", err)
 	}
+	recoveryLogger, err := initLogger(string(recoveryLogFilePath), cfg.Logger)
+	if err != nil {
+		return nil, fmt.Errorf("init recovery logger: %w", err)
+	}
 
-	routes.SetUpRouter(cfg.CORSAllowedOrigins, r, httpLogger, getModuleRoute(modules)...)
+	routes.SetUpRouter(cfg.CORSAllowedOrigins, r, httpLogger, recoveryLogger, getModuleRoute(modules)...)
 	server := &http.Server{
 		Addr:              cfg.HTTPServer.ServerAddress,
 		Handler:           r,
@@ -95,4 +99,20 @@ func getModuleRoute(modules []Module) []routes.Route {
 		routeList[i] = module.Routes()
 	}
 	return routeList
+}
+
+func initLogger(logFilePath string, logConfig config.LogConfig) (*zerolog.Logger, error) {
+	logger, err := applogger.NewFileLogger(
+		logConfig.LogFilePath+logFilePath,
+		logConfig.LogLevel,
+		logConfig.LogMaxSizeMB,
+		logConfig.LogMaxBackups,
+		logConfig.LogMaxAgeDays,
+		logConfig.LogCompress,
+		logConfig.LocalTime,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("init logger: %w", err)
+	}
+	return logger, nil
 }
