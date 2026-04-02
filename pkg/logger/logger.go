@@ -1,13 +1,32 @@
 package logger
 
 import (
+	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/rs/zerolog"
+	"github.com/seminhnva/gin-layered-architecture/internal/config"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
+
+func InitLogger(logFilePath string, logConfig config.LogConfig) (*zerolog.Logger, error) {
+	logger, err := NewFileLogger(
+		filepath.Join(logConfig.LogFilePath, logFilePath),
+		logConfig.LogLevel,
+		logConfig.LogMaxSizeMB,
+		logConfig.LogMaxBackups,
+		logConfig.LogMaxAgeDays,
+		logConfig.LogCompress,
+		logConfig.LocalTime,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("init logger: %w", err)
+	}
+	return logger, nil
+}
 
 func NewFileLogger(logFilePath, level string, maxSize, maxBackups, maxAge int, compress, localTime bool) (*zerolog.Logger, error) {
 	resolvedPath, err := resolvePath(logFilePath)

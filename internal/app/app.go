@@ -4,21 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog"
 	"github.com/seminhnva/gin-layered-architecture/internal/config"
+	"github.com/seminhnva/gin-layered-architecture/internal/constants"
 	"github.com/seminhnva/gin-layered-architecture/internal/routes"
-	applogger "github.com/seminhnva/gin-layered-architecture/pkg/logger"
-)
-
-type logFilePath string
-
-const (
-	httpLogFilePath     logFilePath = "app.log"
-	recoveryLogFilePath logFilePath = "recovery.log"
+	"github.com/seminhnva/gin-layered-architecture/pkg/logger"
 )
 
 type Module interface {
@@ -37,11 +30,11 @@ func NewApplication(cfg *config.Config) (*Application, error) {
 	modules := []Module{
 		NewUserModule(),
 	}
-	httpLogger, err := initLogger(string(httpLogFilePath), cfg.Logger)
+	httpLogger, err := logger.InitLogger(string(constants.HttpLogFilePath), cfg.Logger)
 	if err != nil {
 		return nil, fmt.Errorf("init http logger: %w", err)
 	}
-	recoveryLogger, err := initLogger(string(recoveryLogFilePath), cfg.Logger)
+	recoveryLogger, err := logger.InitLogger(string(constants.RecoveryLogFilePath), cfg.Logger)
 	if err != nil {
 		return nil, fmt.Errorf("init recovery logger: %w", err)
 	}
@@ -64,10 +57,10 @@ func NewApplication(cfg *config.Config) (*Application, error) {
 	}, nil
 }
 
-func (a *Application) Run(ctx context.Context) error {
+func (a *Application) Run(ctx context.Context, appLogger *zerolog.Logger) error {
 	errCh := make(chan error, 1)
 	go func() {
-		log.Printf("HTTP Server listening on %s", a.config.HTTPServer.ServerAddress)
+		appLogger.Info().Msgf("HTTP Server listening on %s", a.config.HTTPServer.ServerAddress)
 		errCh <- a.server.ListenAndServe()
 	}()
 	select {
@@ -86,7 +79,7 @@ func (a *Application) Run(ctx context.Context) error {
 
 		err := <-errCh
 		if errors.Is(err, http.ErrServerClosed) {
-			log.Println("Server exited gracefully")
+			appLogger.Info().Msg("Server exited gracefully")
 			return nil
 		}
 		return err
@@ -99,20 +92,4 @@ func getModuleRoute(modules []Module) []routes.Route {
 		routeList[i] = module.Routes()
 	}
 	return routeList
-}
-
-func initLogger(logFilePath string, logConfig config.LogConfig) (*zerolog.Logger, error) {
-	logger, err := applogger.NewFileLogger(
-		logConfig.LogFilePath+logFilePath,
-		logConfig.LogLevel,
-		logConfig.LogMaxSizeMB,
-		logConfig.LogMaxBackups,
-		logConfig.LogMaxAgeDays,
-		logConfig.LogCompress,
-		logConfig.LocalTime,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("init logger: %w", err)
-	}
-	return logger, nil
 }

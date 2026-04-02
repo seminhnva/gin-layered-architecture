@@ -319,7 +319,7 @@ func loadLogConfig() (LogConfig, error) {
 
 	return LogConfig{
 		LogLevel:      utils.GetEnv("LOG_LEVEL", "info"),
-		LogFilePath:   utils.GetEnv("LOG_FILE_PATH", "logs/app.log"),
+		LogFilePath:   utils.GetEnv("LOG_FILE_PATH", "logs/"),
 		LogMaxSizeMB:  logMaxSizeMB,
 		LogMaxBackups: logMaxBackups,
 		LogMaxAgeDays: logMaxAgeDays,
