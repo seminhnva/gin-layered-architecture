@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog"
+	"github.com/seminhnva/gin-layered-architecture/internal/bootstrap"
 	"github.com/seminhnva/gin-layered-architecture/internal/config"
 	"github.com/seminhnva/gin-layered-architecture/internal/constants"
 	"github.com/seminhnva/gin-layered-architecture/internal/routes"
@@ -30,11 +31,15 @@ func NewApplication(cfg *config.Config) (*Application, error) {
 	modules := []Module{
 		NewUserModule(),
 	}
-	httpLogger, err := logger.InitLogger(string(constants.HttpLogFilePath), cfg.Logger)
+	logOpts := bootstrap.NewLoggerOptions(cfg.Logger)
+
+	httpLogger, err := logger.InitLogger(string(constants.HttpLogFilePath),
+		logOpts,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("init http logger: %w", err)
 	}
-	recoveryLogger, err := logger.InitLogger(string(constants.RecoveryLogFilePath), cfg.Logger)
+	recoveryLogger, err := logger.InitLogger(string(constants.RecoveryLogFilePath), logOpts)
 	if err != nil {
 		return nil, fmt.Errorf("init recovery logger: %w", err)
 	}

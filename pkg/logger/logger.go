@@ -8,19 +8,28 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
-	"github.com/seminhnva/gin-layered-architecture/internal/config"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
-func InitLogger(logFilePath string, logConfig config.LogConfig) (*zerolog.Logger, error) {
+type Options struct {
+	Dir        string
+	Level      string
+	MaxSizeMB  int
+	MaxBackups int
+	MaxAgeDays int
+	Compress   bool
+	LocalTime  bool
+}
+
+func InitLogger(fileName string, opts Options) (*zerolog.Logger, error) {
 	logger, err := NewFileLogger(
-		filepath.Join(logConfig.LogFilePath, logFilePath),
-		logConfig.LogLevel,
-		logConfig.LogMaxSizeMB,
-		logConfig.LogMaxBackups,
-		logConfig.LogMaxAgeDays,
-		logConfig.LogCompress,
-		logConfig.LocalTime,
+		filepath.Join(opts.Dir, fileName),
+		opts.Level,
+		opts.MaxSizeMB,
+		opts.MaxBackups,
+		opts.MaxAgeDays,
+		opts.Compress,
+		opts.LocalTime,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("init logger: %w", err)
@@ -39,12 +48,11 @@ func NewFileLogger(logFilePath, level string, maxSize, maxBackups, maxAge int, c
 	}
 
 	zerolog.TimeFieldFormat = time.RFC3339
+
 	lv, err := zerolog.ParseLevel(level)
 	if err != nil {
 		return nil, err
 	}
-	zerolog.SetGlobalLevel(lv)
-
 	rollingFile := &lumberjack.Logger{
 		Filename:   resolvedPath,
 		MaxSize:    maxSize,
@@ -55,7 +63,7 @@ func NewFileLogger(logFilePath, level string, maxSize, maxBackups, maxAge int, c
 	}
 	var write io.Writer
 	write = zerolog.MultiLevelWriter(os.Stdout, rollingFile)
-	logger := zerolog.New(write).With().Timestamp().Logger()
+	logger := zerolog.New(write).Level(lv).With().Timestamp().Logger()
 
 	return &logger, nil
 }

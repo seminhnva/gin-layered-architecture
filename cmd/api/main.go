@@ -8,6 +8,7 @@ import (
 	"syscall"
 
 	"github.com/seminhnva/gin-layered-architecture/internal/app"
+	"github.com/seminhnva/gin-layered-architecture/internal/bootstrap"
 	"github.com/seminhnva/gin-layered-architecture/internal/config"
 	"github.com/seminhnva/gin-layered-architecture/internal/constants"
 	"github.com/seminhnva/gin-layered-architecture/pkg/logger"
@@ -22,7 +23,9 @@ func main() {
 		log.Fatalf("set up config: %v", err)
 	}
 
-	appLogger, err := logger.InitLogger(string(constants.AppLogFilePath), cfg.Logger)
+	appLogger, err := logger.InitLogger(string(constants.AppLogFilePath),
+		bootstrap.NewLoggerOptions(cfg.Logger),
+	)
 	if err != nil {
 		log.Fatalf("init app logger: %v", err)
 	}
