@@ -2,7 +2,7 @@ package routes
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/seminhnva/gin-layered-architecture/internal/api/handler"
+	"github.com/seminhnva/gin-layered-architecture/internal/api/handler/v1"
 )
 
 type UserRoute struct {

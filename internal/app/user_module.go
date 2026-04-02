@@ -1,10 +1,10 @@
 package app
 
 import (
-	"github.com/seminhnva/gin-layered-architecture/internal/api/handler"
+	"github.com/seminhnva/gin-layered-architecture/internal/api/handler/v1"
 	"github.com/seminhnva/gin-layered-architecture/internal/repository"
 	"github.com/seminhnva/gin-layered-architecture/internal/routes"
-	"github.com/seminhnva/gin-layered-architecture/internal/service"
+	"github.com/seminhnva/gin-layered-architecture/internal/service/v1"
 )
 
 type UserModule struct {
