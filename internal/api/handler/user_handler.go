@@ -15,6 +15,7 @@ func NewUserHandler(service service.UserService) *UserHandler {
 }
 func (uh *UserHandler) GetUsers(c *gin.Context) {
 	uh.service.GetUser()
+
 }
 func (uh *UserHandler) CreateUser(c *gin.Context) {
 	uh.service.CreateUser()

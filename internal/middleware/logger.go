@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog"
+	"github.com/seminhnva/gin-layered-architecture/internal/common/apperror"
 )
 
 var sensitiveFields = map[string]bool{
@@ -220,6 +221,10 @@ func Logger(httpLogger *zerolog.Logger) gin.HandlerFunc {
 
 		if len(files) > 0 {
 			e = e.Interface("files", files)
+		}
+
+		if errCtx, ok := apperror.GetLogContext(c); ok {
+			e = e.Interface("error", errCtx)
 		}
 
 		e.Msg("HTTP")
