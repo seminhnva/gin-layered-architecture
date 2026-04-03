@@ -88,3 +88,7 @@ func GetSliceEnv(key string) []string {
 
 	return values
 }
+
+func NormalizeString(text string) string {
+	return strings.ToLower(strings.TrimSpace(text))
+}

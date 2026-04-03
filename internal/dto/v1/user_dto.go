@@ -1,5 +1,17 @@
 package v1dto
 
+import (
+	"github.com/google/uuid"
+	"github.com/seminhnva/gin-layered-architecture/internal/db/sqlc"
+)
+
+type UserDTO struct {
+	UUID     string `json:"uuid"`
+	Name     string `json:"name"`
+	Username string `json:"username"`
+	Email    string `json:"email"`
+}
+
 type CreateUserRequest struct {
 	UserName string `json:"userName" binding:"required"`
 	Name     string `json:"name" binding:"required"`
@@ -7,11 +19,30 @@ type CreateUserRequest struct {
 	Password string `json:"password" binding:"required,min=6"`
 }
 
+func (c *CreateUserRequest) ToCreateUserParams() sqlc.CreateUserParams {
+	return sqlc.CreateUserParams{
+		UserName:     c.UserName,
+		Name:         c.Name,
+		Email:        c.Email,
+		PasswordHash: c.Password,
+	}
+}
+
 type UpdateUserRequest struct {
 	UserName *string `json:"userName" binding:"omitempty,required"`
 	Name     *string `json:"name" binding:"omitempty,required"`
-	Email    string  `json:"email" binding:"required,email"`
+	Email    *string `json:"email" binding:"omitempty,email"`
 	Password *string `json:"password" binding:"omitempty,required,min=6"`
+}
+
+func (u *UpdateUserRequest) ToUpdateUserParams(ID uuid.UUID) sqlc.UpdateUserByIDParams {
+	return sqlc.UpdateUserByIDParams{
+		UserID:       ID,
+		UserName:     u.UserName,
+		Name:         u.Name,
+		Email:        u.Email,
+		PasswordHash: u.Password,
+	}
 }
 
 type GetUserIdParams struct {
@@ -38,5 +69,14 @@ func (q *ListUsersQuery) Normalize() {
 	}
 	if q.SortBy == "" {
 		q.SortBy = "created_at"
+	}
+}
+
+func ToUserResponse(user sqlc.User) *UserDTO {
+	return &UserDTO{
+		UUID:     user.UserID.String(),
+		Name:     user.Name,
+		Username: user.UserName,
+		Email:    user.Email,
 	}
 }
