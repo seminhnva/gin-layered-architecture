@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/seminhnva/gin-layered-architecture/internal/api/validation"
@@ -42,9 +44,15 @@ func (uh *UserHandler) CreateUser(c *gin.Context) {
 		response.Error(c, validation.HandleValidationError(err))
 		return
 	}
-
-	uh.service.CreateUser()
+	req.ToCreateUserParams()
+	user, err := uh.service.CreateUser(c.Request.Context(), req)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+	response.Success(c, http.StatusCreated, "User created successfully", v1dto.ToUserResponse(user))
 }
+
 func (uh *UserHandler) GetUserByUUID(c *gin.Context) {
 	var params v1dto.GetUserIdParams
 	if err := c.ShouldBindUri(&params); err != nil {
@@ -57,15 +65,39 @@ func (uh *UserHandler) GetUserByUUID(c *gin.Context) {
 		return
 	}
 
-	uh.service.GetUserByUUID(UserID)
+	user, err := uh.service.GetUserByUUID(c.Request.Context(), UserID)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+	response.Success(c, http.StatusOK, "User found", v1dto.ToUserResponse(user))
 }
 func (uh *UserHandler) UpdateUser(c *gin.Context) {
+	var params v1dto.GetUserIdParams
+	if err := c.ShouldBindUri(&params); err != nil {
+		response.Error(c, validation.HandleValidationError(err))
+		return
+	}
 	var req v1dto.UpdateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Error(c, validation.HandleValidationError(err))
 		return
 	}
-	uh.service.UpdateUser()
+
+	UserID, err := uuid.Parse(params.UUID)
+	if err != nil {
+		response.Error(c, apperror.NewError("invalid user id", apperror.ErrCodeBadRequest))
+		return
+	}
+
+	updateParams := req.ToUpdateUserParams(UserID)
+
+	user, err := uh.service.UpdateUser(c.Request.Context(), updateParams)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+	response.Success(c, http.StatusOK, "User updated successfully", v1dto.ToUserResponse(user))
 }
 func (uh *UserHandler) DeleteUser(c *gin.Context) {
 	var params v1dto.GetUserIdParams
@@ -78,5 +110,9 @@ func (uh *UserHandler) DeleteUser(c *gin.Context) {
 		response.Error(c, apperror.NewError("invalid user id", apperror.ErrCodeBadRequest))
 		return
 	}
-	uh.service.DeleteUser(userID)
+	if err := uh.service.DeleteUser(c.Request.Context(), userID); err != nil {
+		response.Error(c, err)
+		return
+	}
+	response.Success(c, http.StatusOK, "User deleted successfully", nil)
 }

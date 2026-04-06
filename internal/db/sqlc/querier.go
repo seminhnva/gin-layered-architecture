@@ -11,9 +11,9 @@ import (
 type Querier interface {
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	FindUserByID(ctx context.Context, arg FindUserByIDParams) (User, error)
-	HardDeleteUser(ctx context.Context, arg HardDeleteUserParams) error
+	HardDeleteUser(ctx context.Context, arg HardDeleteUserParams) (int64, error)
 	RestoreUser(ctx context.Context, arg RestoreUserParams) (User, error)
-	SoftDeleteUser(ctx context.Context, arg SoftDeleteUserParams) error
+	SoftDeleteUser(ctx context.Context, arg SoftDeleteUserParams) (int64, error)
 	UpdateUserByID(ctx context.Context, arg UpdateUserByIDParams) (User, error)
 }
 

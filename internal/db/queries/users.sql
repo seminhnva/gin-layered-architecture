@@ -25,12 +25,12 @@ SET
 WHERE user_id = sqlc.arg(user_id) AND deleted_at IS NULL
 RETURNING *;
 
--- name: SoftDeleteUser :exec
+-- name: SoftDeleteUser :execrows
 UPDATE users
 SET deleted_at = NOW()
 WHERE user_id = $1 AND deleted_at IS NULL;
 
--- name: HardDeleteUser :exec
+-- name: HardDeleteUser :execrows
 DELETE FROM users
 WHERE user_id = $1;
 

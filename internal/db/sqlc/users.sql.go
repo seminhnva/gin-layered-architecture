@@ -76,7 +76,7 @@ func (q *Queries) FindUserByID(ctx context.Context, arg FindUserByIDParams) (Use
 	return i, err
 }
 
-const hardDeleteUser = `-- name: HardDeleteUser :exec
+const hardDeleteUser = `-- name: HardDeleteUser :execrows
 DELETE FROM users
 WHERE user_id = $1
 `
@@ -85,9 +85,12 @@ type HardDeleteUserParams struct {
 	UserID uuid.UUID `json:"user_id"`
 }
 
-func (q *Queries) HardDeleteUser(ctx context.Context, arg HardDeleteUserParams) error {
-	_, err := q.db.Exec(ctx, hardDeleteUser, arg.UserID)
-	return err
+func (q *Queries) HardDeleteUser(ctx context.Context, arg HardDeleteUserParams) (int64, error) {
+	result, err := q.db.Exec(ctx, hardDeleteUser, arg.UserID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const restoreUser = `-- name: RestoreUser :one
@@ -118,7 +121,7 @@ func (q *Queries) RestoreUser(ctx context.Context, arg RestoreUserParams) (User,
 	return i, err
 }
 
-const softDeleteUser = `-- name: SoftDeleteUser :exec
+const softDeleteUser = `-- name: SoftDeleteUser :execrows
 UPDATE users
 SET deleted_at = NOW()
 WHERE user_id = $1 AND deleted_at IS NULL
@@ -128,9 +131,12 @@ type SoftDeleteUserParams struct {
 	UserID uuid.UUID `json:"user_id"`
 }
 
-func (q *Queries) SoftDeleteUser(ctx context.Context, arg SoftDeleteUserParams) error {
-	_, err := q.db.Exec(ctx, softDeleteUser, arg.UserID)
-	return err
+func (q *Queries) SoftDeleteUser(ctx context.Context, arg SoftDeleteUserParams) (int64, error) {
+	result, err := q.db.Exec(ctx, softDeleteUser, arg.UserID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const updateUserByID = `-- name: UpdateUserByID :one

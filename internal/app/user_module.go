@@ -11,8 +11,8 @@ type UserModule struct {
 	routes routes.Route
 }
 
-func NewUserModule() *UserModule {
-	userRepo := repository.NewUserRepo()
+func NewUserModule(deps *ModuleDeps) *UserModule {
+	userRepo := repository.NewUserRepo(deps.Queries)
 	userSerivce := service.NewUserService(userRepo)
 	userHanlder := handler.NewUserHandler(userSerivce)
 	userRoutes := routes.NewUserRoutes(userHanlder)
