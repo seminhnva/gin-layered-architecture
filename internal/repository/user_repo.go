@@ -20,9 +20,18 @@ func NewUserRepo(queries *sqlc.Queries) UserRepository {
 		queries: queries,
 	}
 }
-func (ur *UserRepo) FindUser() {
-
+func (ur *UserRepo) GetUsers(ctx context.Context, params sqlc.ListUsersParams) ([]sqlc.User, error) {
+	users, error := ur.queries.ListUsers(ctx, params)
+	return users, error
 }
+
+func (ur *UserRepo) CountUser(ctx context.Context, countParam sqlc.CountUsersParams) (int64, error) {
+	total, err := ur.queries.CountUsers(ctx, sqlc.CountUsersParams{
+		Search: countParam.Search,
+	})
+	return total, err
+}
+
 func (ur *UserRepo) FindByUUID(ctx context.Context, ID uuid.UUID) (sqlc.User, error) {
 	user, err := ur.queries.FindUserByID(ctx, sqlc.FindUserByIDParams{
 		UserID: ID,

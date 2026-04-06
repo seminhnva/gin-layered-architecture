@@ -41,3 +41,35 @@ WHERE user_id = sqlc.arg(user_id)
   AND deleted_at IS NOT NULL
 RETURNING *;
 
+
+-- name: ListUsers :many
+SELECT * FROM users
+WHERE
+    deleted_at IS NULL
+    AND (
+        sqlc.narg(search)::TEXT IS NULL OR
+        user_name ILIKE '%' || sqlc.narg(search) || '%' OR
+        email ILIKE '%' || sqlc.narg(search) || '%' OR
+        name ILIKE '%' || sqlc.narg(search) || '%'
+    )
+ORDER BY
+    CASE WHEN sqlc.arg(sort_by)::text = 'name'  AND sqlc.arg(order_by)::text = 'asc'  THEN name       END ASC,
+    CASE WHEN sqlc.arg(sort_by)::text = 'name'  AND sqlc.arg(order_by)::text = 'desc' THEN name       END DESC,
+    CASE WHEN sqlc.arg(sort_by)::text = 'email' AND sqlc.arg(order_by)::text = 'asc'  THEN email      END ASC,
+    CASE WHEN sqlc.arg(sort_by)::text = 'email' AND sqlc.arg(order_by)::text = 'desc' THEN email      END DESC,
+    CASE WHEN sqlc.arg(sort_by)::text = 'created_at' AND sqlc.arg(order_by)::text = 'asc' THEN created_at END ASC,
+    created_at DESC
+LIMIT sqlc.arg('limit_val')::int
+OFFSET sqlc.arg('offset_val')::int;
+
+-- name: CountUsers :one
+SELECT COUNT(*) FROM users
+WHERE
+    deleted_at IS NULL
+    AND (
+        sqlc.narg('search')::text IS NULL OR 
+        sqlc.narg('search')::text = '' OR
+        user_name ILIKE '%' || sqlc.narg('search') || '%' OR
+        email ILIKE '%' || sqlc.narg('search') || '%' OR
+        name ILIKE '%' || sqlc.narg('search') || '%'
+    );

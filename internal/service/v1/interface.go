@@ -9,7 +9,7 @@ import (
 )
 
 type UserService interface {
-	GetUsers(ctx context.Context, query v1dto.ListUsersQuery)
+	GetUsers(ctx context.Context, query v1dto.ListUsersQuery) (*v1dto.PaginationResponse[v1dto.UserDTO], error)
 	CreateUser(ctx context.Context, req v1dto.CreateUserRequest) (sqlc.User, error)
 	GetUserByUUID(ctx context.Context, ID uuid.UUID) (sqlc.User, error)
 	UpdateUser(ctx context.Context, params sqlc.UpdateUserByIDParams) (sqlc.User, error)

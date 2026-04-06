@@ -9,9 +9,11 @@ import (
 )
 
 type Querier interface {
+	CountUsers(ctx context.Context, arg CountUsersParams) (int64, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	FindUserByID(ctx context.Context, arg FindUserByIDParams) (User, error)
 	HardDeleteUser(ctx context.Context, arg HardDeleteUserParams) (int64, error)
+	ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error)
 	RestoreUser(ctx context.Context, arg RestoreUserParams) (User, error)
 	SoftDeleteUser(ctx context.Context, arg SoftDeleteUserParams) (int64, error)
 	UpdateUserByID(ctx context.Context, arg UpdateUserByIDParams) (User, error)

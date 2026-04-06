@@ -11,6 +11,30 @@ import (
 	"github.com/google/uuid"
 )
 
+const countUsers = `-- name: CountUsers :one
+SELECT COUNT(*) FROM users
+WHERE
+    deleted_at IS NULL
+    AND (
+        $1::text IS NULL OR 
+        $1::text = '' OR
+        user_name ILIKE '%' || $1 || '%' OR
+        email ILIKE '%' || $1 || '%' OR
+        name ILIKE '%' || $1 || '%'
+    )
+`
+
+type CountUsersParams struct {
+	Search *string `json:"search"`
+}
+
+func (q *Queries) CountUsers(ctx context.Context, arg CountUsersParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countUsers, arg.Search)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createUser = `-- name: CreateUser :one
 INSERT INTO users(
     user_name,
@@ -91,6 +115,70 @@ func (q *Queries) HardDeleteUser(ctx context.Context, arg HardDeleteUserParams) 
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const listUsers = `-- name: ListUsers :many
+SELECT user_id, user_name, name, email, password_hash, created_at, updated_at, deleted_at FROM users
+WHERE
+    deleted_at IS NULL
+    AND (
+        $1::TEXT IS NULL OR
+        user_name ILIKE '%' || $1 || '%' OR
+        email ILIKE '%' || $1 || '%' OR
+        name ILIKE '%' || $1 || '%'
+    )
+ORDER BY
+    CASE WHEN $2::text = 'name'  AND $3::text = 'asc'  THEN name       END ASC,
+    CASE WHEN $2::text = 'name'  AND $3::text = 'desc' THEN name       END DESC,
+    CASE WHEN $2::text = 'email' AND $3::text = 'asc'  THEN email      END ASC,
+    CASE WHEN $2::text = 'email' AND $3::text = 'desc' THEN email      END DESC,
+    CASE WHEN $2::text = 'created_at' AND $3::text = 'asc' THEN created_at END ASC,
+    created_at DESC
+LIMIT $5::int
+OFFSET $4::int
+`
+
+type ListUsersParams struct {
+	Search    *string `json:"search"`
+	SortBy    string  `json:"sort_by"`
+	OrderBy   string  `json:"order_by"`
+	OffsetVal int32   `json:"offset_val"`
+	LimitVal  int32   `json:"limit_val"`
+}
+
+func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error) {
+	rows, err := q.db.Query(ctx, listUsers,
+		arg.Search,
+		arg.SortBy,
+		arg.OrderBy,
+		arg.OffsetVal,
+		arg.LimitVal,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []User{}
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.UserID,
+			&i.UserName,
+			&i.Name,
+			&i.Email,
+			&i.PasswordHash,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const restoreUser = `-- name: RestoreUser :one

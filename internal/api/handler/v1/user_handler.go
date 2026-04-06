@@ -35,9 +35,14 @@ func (uh *UserHandler) GetUsers(c *gin.Context) {
 		Order:  params.Order,
 		Search: params.Search,
 	}
-	uh.service.GetUsers(c.Request.Context(), arg)
-
+	users, err := uh.service.GetUsers(c.Request.Context(), arg)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+	response.Success(c, http.StatusOK, "Users found", users)
 }
+
 func (uh *UserHandler) CreateUser(c *gin.Context) {
 	var req v1dto.CreateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

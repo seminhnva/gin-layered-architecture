@@ -12,6 +12,7 @@ import (
 	v1dto "github.com/seminhnva/gin-layered-architecture/internal/dto/v1"
 	"github.com/seminhnva/gin-layered-architecture/internal/repository"
 	"github.com/seminhnva/gin-layered-architecture/internal/utils"
+	"golang.org/x/sync/errgroup"
 )
 
 type userService struct {
@@ -25,7 +26,47 @@ func NewUserService(repo repository.UserRepository, passwordService auth.Hasher)
 		passwordService: passwordService,
 	}
 }
-func (us *userService) GetUsers(ctx context.Context, query v1dto.ListUsersQuery) {
+func (us *userService) GetUsers(ctx context.Context, param v1dto.ListUsersQuery) (*v1dto.PaginationResponse[v1dto.UserDTO], error) {
+	offset := (param.Page - 1) * param.Limit
+	params := sqlc.ListUsersParams{
+		Search:    param.Search,
+		OrderBy:   param.Order,
+		SortBy:    param.SortBy,
+		OffsetVal: offset,
+		LimitVal:  param.Limit,
+	}
+	var (
+		users []sqlc.User
+		total int64
+	)
+	g, ctx := errgroup.WithContext(ctx)
+	g.Go(func() error {
+		var err error
+		users, err = us.repo.GetUsers(ctx, params)
+		return err
+	})
+	g.Go(func() error {
+		var err error
+		total, err = us.repo.CountUser(ctx, sqlc.CountUsersParams{
+			Search: param.Search,
+		})
+		return err
+	})
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+
+	data := make([]v1dto.UserDTO, len(users))
+	for i, u := range users {
+		data[i] = *v1dto.ToUserResponse(u)
+	}
+	return &v1dto.PaginationResponse[v1dto.UserDTO]{
+		Data:  data,
+		Total: total,
+		Page:  int(param.Page),
+		Limit: int(param.Limit),
+	}, nil
+
 }
 func (us *userService) CreateUser(ctx context.Context, req v1dto.CreateUserRequest) (sqlc.User, error) {
 	hashedPw, err := us.passwordService.HashPassword(req.Password)

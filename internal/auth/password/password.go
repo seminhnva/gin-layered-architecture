@@ -1,4 +1,4 @@
-package pwassword
+package password
 
 import (
 	"github.com/alexedwards/argon2id"

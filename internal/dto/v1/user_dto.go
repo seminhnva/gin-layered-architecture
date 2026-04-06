@@ -50,9 +50,9 @@ type GetUserIdParams struct {
 }
 
 type ListUsersQuery struct {
-	Page   int     `form:"page" binding:"omitempty,min=1"`
-	Limit  int     `form:"limit" binding:"omitempty,min=1,max=100"`
-	SortBy string  `form:"sort_by" binding:"omitempty,oneof=created_at updated_at name email"`
+	Page   int32   `form:"page" binding:"omitempty,min=1"`
+	Limit  int32   `form:"limit" binding:"omitempty,min=1,max=100"`
+	SortBy string  `form:"sort_by" binding:"omitempty,oneof=created_at name email"`
 	Order  string  `form:"order" binding:"omitempty,oneof=asc desc"`
 	Search *string `form:"search" binding:"omitempty,max=100"`
 }
@@ -70,6 +70,21 @@ func (q *ListUsersQuery) Normalize() {
 	if q.SortBy == "" {
 		q.SortBy = "created_at"
 	}
+	allowed := map[string]bool{
+		"name":       true,
+		"email":      true,
+		"created_at": true,
+	}
+	if !allowed[q.SortBy] {
+		q.SortBy = "created_at"
+	}
+}
+
+type PaginationResponse[T any] struct {
+	Data  []T   `json:"data"`
+	Total int64 `json:"total"`
+	Page  int   `json:"page"`
+	Limit int   `json:"limit"`
 }
 
 func ToUserResponse(user sqlc.User) *UserDTO {
