@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rs/zerolog"
+	"github.com/seminhnva/gin-layered-architecture/internal/auth"
 	"github.com/seminhnva/gin-layered-architecture/internal/bootstrap"
 	"github.com/seminhnva/gin-layered-architecture/internal/config"
 	"github.com/seminhnva/gin-layered-architecture/internal/constants"
@@ -31,7 +32,8 @@ type Application struct {
 }
 
 type ModuleDeps struct {
-	Queries *sqlc.Queries
+	Queries         *sqlc.Queries
+	PasswordService auth.Hasher
 }
 
 func NewApplication(cfg *config.Config) (*Application, error) {

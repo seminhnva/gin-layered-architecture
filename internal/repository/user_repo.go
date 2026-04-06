@@ -35,6 +35,7 @@ func (ur *UserRepo) FindByUUID(ctx context.Context, ID uuid.UUID) (sqlc.User, er
 	}
 	return user, nil
 }
+
 func (ur *UserRepo) Create(ctx context.Context, params sqlc.CreateUserParams) (sqlc.User, error) {
 	user, err := ur.queries.CreateUser(ctx, params)
 	if err != nil {
@@ -52,6 +53,7 @@ func (ur *UserRepo) Update(ctx context.Context, params sqlc.UpdateUserByIDParams
 	}
 	return user, nil
 }
+
 func (ur *UserRepo) SoftDelete(ctx context.Context, ID uuid.UUID) error {
 	rows, err := ur.queries.SoftDeleteUser(ctx, sqlc.SoftDeleteUserParams{
 		UserID: ID,
