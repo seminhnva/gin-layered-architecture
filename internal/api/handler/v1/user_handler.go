@@ -28,19 +28,25 @@ func (uh *UserHandler) GetUsers(c *gin.Context) {
 		return
 	}
 	params.Normalize()
-	arg := v1dto.ListUsersQuery{
-		Page:   params.Page,
-		Limit:  params.Limit,
-		SortBy: params.SortBy,
-		Order:  params.Order,
-		Search: params.Search,
-	}
-	users, err := uh.service.GetUsers(c.Request.Context(), arg)
+	users, err := uh.service.GetUsers(c.Request.Context(), params)
 	if err != nil {
 		response.Error(c, err)
 		return
 	}
-	response.Success(c, http.StatusOK, "Users found", users)
+	meta := &response.Meta{
+		Total:      users.Total,
+		Page:       users.Page,
+		Limit:      users.Limit,
+		TotalPages: users.TotalPages,
+	}
+	links :=
+		response.BuildPaginationLinks(
+			c,
+			int(users.Page),
+			int(users.Limit),
+			users.TotalPages,
+			v1dto.ListUsersAllowedQueryKeys)
+	response.Paginated(c, http.StatusOK, users.Data, meta, links)
 }
 
 func (uh *UserHandler) CreateUser(c *gin.Context) {
@@ -55,7 +61,7 @@ func (uh *UserHandler) CreateUser(c *gin.Context) {
 		response.Error(c, err)
 		return
 	}
-	response.Success(c, http.StatusCreated, "User created successfully", v1dto.ToUserDTOFromCreate(user))
+	response.Success(c, http.StatusCreated, v1dto.ToUserDTOFromCreate(user))
 }
 
 func (uh *UserHandler) GetUserByUUID(c *gin.Context) {
@@ -75,7 +81,7 @@ func (uh *UserHandler) GetUserByUUID(c *gin.Context) {
 		response.Error(c, err)
 		return
 	}
-	response.Success(c, http.StatusOK, "User found", v1dto.ToUserDTOFromFind(user))
+	response.Success(c, http.StatusOK, v1dto.ToUserDTOFromFind(user))
 }
 func (uh *UserHandler) UpdateUser(c *gin.Context) {
 	var params v1dto.GetUserIdParams
@@ -102,7 +108,7 @@ func (uh *UserHandler) UpdateUser(c *gin.Context) {
 		response.Error(c, err)
 		return
 	}
-	response.Success(c, http.StatusOK, "User updated successfully", v1dto.ToUserDTOFromUpdate(user))
+	response.Success(c, http.StatusOK, v1dto.ToUserDTOFromUpdate(user))
 }
 func (uh *UserHandler) DeleteUser(c *gin.Context) {
 	var params v1dto.GetUserIdParams
@@ -119,5 +125,5 @@ func (uh *UserHandler) DeleteUser(c *gin.Context) {
 		response.Error(c, err)
 		return
 	}
-	response.Success(c, http.StatusOK, "User deleted successfully", nil)
+	response.Success(c, http.StatusOK, nil)
 }

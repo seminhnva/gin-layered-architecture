@@ -1,9 +1,19 @@
 package v1dto
 
 import (
+	"net/url"
+
 	"github.com/google/uuid"
 	"github.com/seminhnva/gin-layered-architecture/internal/db/sqlc"
 )
+
+var ListUsersAllowedQueryKeys = map[string]struct{}{
+	"page":    {},
+	"limit":   {},
+	"sort_by": {},
+	"order":   {},
+	"search":  {},
+}
 
 type UserDTO struct {
 	UUID     string `json:"uuid"`
@@ -11,29 +21,6 @@ type UserDTO struct {
 	Username string `json:"username"`
 	Email    string `json:"email"`
 }
-
-func toUserDTO(id uuid.UUID, name, username, email string) *UserDTO {
-	return &UserDTO{
-		UUID:     id.String(),
-		Name:     name,
-		Username: username,
-		Email:    email,
-	}
-}
-
-func ToUserDTOFromList(u sqlc.ListUsersRow) *UserDTO {
-	return toUserDTO(u.UserID, u.Name, u.UserName, u.Email)
-}
-func ToUserDTOFromCreate(u sqlc.CreateUserRow) *UserDTO {
-	return toUserDTO(u.UserID, u.Name, u.UserName, u.Email)
-}
-func ToUserDTOFromFind(u sqlc.FindUserByIDRow) *UserDTO {
-	return toUserDTO(u.UserID, u.Name, u.UserName, u.Email)
-}
-func ToUserDTOFromUpdate(u sqlc.UpdateUserByIDRow) *UserDTO {
-	return toUserDTO(u.UserID, u.Name, u.UserName, u.Email)
-}
-
 type CreateUserRequest struct {
 	UserName string `json:"userName" binding:"required"`
 	Name     string `json:"name" binding:"required"`
@@ -102,6 +89,24 @@ func (q *ListUsersQuery) Normalize() {
 	}
 }
 
+func (q ListUsersQuery) ToQueryValues() url.Values {
+	values := url.Values{}
+
+	if q.SortBy != "" {
+		values.Set("sort_by", q.SortBy)
+	}
+
+	if q.Order != "" {
+		values.Set("order", q.Order)
+	}
+
+	if q.Search != nil && *q.Search != "" {
+		values.Set("search", *q.Search)
+	}
+
+	return values
+}
+
 type UserListItem struct {
 	UUID      string `json:"uuid"`
 	Name      string `json:"name"`
@@ -113,7 +118,29 @@ type UserListItem struct {
 type PaginationResponse[T any] struct {
 	Data       []T   `json:"data"`
 	Total      int64 `json:"total"`
-	Page       int   `json:"page"`
-	Limit      int   `json:"limit"`
+	Page       int32 `json:"page"`
+	Limit      int32 `json:"limit"`
 	TotalPages int32 `json:"total_pages"`
+}
+
+func toUserDTO(id uuid.UUID, name, username, email string) *UserDTO {
+	return &UserDTO{
+		UUID:     id.String(),
+		Name:     name,
+		Username: username,
+		Email:    email,
+	}
+}
+
+func ToUserDTOFromList(u sqlc.ListUsersRow) *UserDTO {
+	return toUserDTO(u.UserID, u.Name, u.UserName, u.Email)
+}
+func ToUserDTOFromCreate(u sqlc.CreateUserRow) *UserDTO {
+	return toUserDTO(u.UserID, u.Name, u.UserName, u.Email)
+}
+func ToUserDTOFromFind(u sqlc.FindUserByIDRow) *UserDTO {
+	return toUserDTO(u.UserID, u.Name, u.UserName, u.Email)
+}
+func ToUserDTOFromUpdate(u sqlc.UpdateUserByIDRow) *UserDTO {
+	return toUserDTO(u.UserID, u.Name, u.UserName, u.Email)
 }

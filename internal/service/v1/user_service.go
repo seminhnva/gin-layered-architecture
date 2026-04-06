@@ -68,8 +68,8 @@ func (us *userService) GetUsers(ctx context.Context, param v1dto.ListUsersQuery)
 	return &v1dto.PaginationResponse[v1dto.UserDTO]{
 		Data:       data,
 		Total:      total,
-		Page:       int(param.Page),
-		Limit:      int(param.Limit),
+		Page:       param.Page,
+		Limit:      param.Limit,
 		TotalPages: totalPages,
 	}, nil
 
