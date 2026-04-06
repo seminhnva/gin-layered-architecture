@@ -55,7 +55,7 @@ func (uh *UserHandler) CreateUser(c *gin.Context) {
 		response.Error(c, err)
 		return
 	}
-	response.Success(c, http.StatusCreated, "User created successfully", v1dto.ToUserResponse(user))
+	response.Success(c, http.StatusCreated, "User created successfully", v1dto.ToUserDTOFromCreate(user))
 }
 
 func (uh *UserHandler) GetUserByUUID(c *gin.Context) {
@@ -75,7 +75,7 @@ func (uh *UserHandler) GetUserByUUID(c *gin.Context) {
 		response.Error(c, err)
 		return
 	}
-	response.Success(c, http.StatusOK, "User found", v1dto.ToUserResponse(user))
+	response.Success(c, http.StatusOK, "User found", v1dto.ToUserDTOFromFind(user))
 }
 func (uh *UserHandler) UpdateUser(c *gin.Context) {
 	var params v1dto.GetUserIdParams
@@ -102,7 +102,7 @@ func (uh *UserHandler) UpdateUser(c *gin.Context) {
 		response.Error(c, err)
 		return
 	}
-	response.Success(c, http.StatusOK, "User updated successfully", v1dto.ToUserResponse(user))
+	response.Success(c, http.StatusOK, "User updated successfully", v1dto.ToUserDTOFromUpdate(user))
 }
 func (uh *UserHandler) DeleteUser(c *gin.Context) {
 	var params v1dto.GetUserIdParams

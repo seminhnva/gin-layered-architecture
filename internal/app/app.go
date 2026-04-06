@@ -33,6 +33,7 @@ type Application struct {
 }
 
 type ModuleDeps struct {
+	db              *pgxpool.Pool
 	Queries         *sqlc.Queries
 	PasswordService auth.Hasher
 }
@@ -46,6 +47,7 @@ func NewApplication(cfg *config.Config) (*Application, error) {
 	deps := &ModuleDeps{
 		Queries:         sqlc.New(dbpool),
 		PasswordService: password.NewPasswordService(),
+		db:              dbpool,
 	}
 	r := gin.New()
 	modules := []Module{

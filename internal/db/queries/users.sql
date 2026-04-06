@@ -6,11 +6,11 @@ INSERT INTO users(
     password_hash
 ) VALUES (
     $1, $2, $3, $4
-) RETURNING *;
+) RETURNING user_id, user_name, email, name;
 
 
 -- name: FindUserByID :one
-SELECT *
+SELECT user_id, user_name, email, name
 FROM users
 WHERE user_id = $1 AND deleted_at IS NULL;
 
@@ -23,7 +23,7 @@ SET
     password_hash = COALESCE(sqlc.narg(password_hash), password_hash),
     updated_at    = NOW()
 WHERE user_id = sqlc.arg(user_id) AND deleted_at IS NULL
-RETURNING *;
+RETURNING user_id, user_name, name, email, updated_at;
 
 -- name: SoftDeleteUser :execrows
 UPDATE users
@@ -39,11 +39,11 @@ UPDATE users
 SET deleted_at = NULL
 WHERE user_id = sqlc.arg(user_id)
   AND deleted_at IS NOT NULL
-RETURNING *;
-
+RETURNING user_id, user_name, email, name, updated_at;
 
 -- name: ListUsers :many
-SELECT * FROM users
+SELECT user_id,user_name, email, name
+FROM users
 WHERE
     deleted_at IS NULL
     AND (

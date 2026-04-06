@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
+	"math"
 
 	"github.com/google/uuid"
 	"github.com/seminhnva/gin-layered-architecture/internal/auth"
@@ -27,22 +29,23 @@ func NewUserService(repo repository.UserRepository, passwordService auth.Hasher)
 	}
 }
 func (us *userService) GetUsers(ctx context.Context, param v1dto.ListUsersQuery) (*v1dto.PaginationResponse[v1dto.UserDTO], error) {
-	offset := (param.Page - 1) * param.Limit
-	params := sqlc.ListUsersParams{
-		Search:    param.Search,
-		OrderBy:   param.Order,
-		SortBy:    param.SortBy,
-		OffsetVal: offset,
-		LimitVal:  param.Limit,
+	filter := repository.UserListFilter{
+		Page:   param.Page,
+		Limit:  param.Limit,
+		Search: param.Search,
+		Order:  param.Order,
+		SortBy: param.SortBy,
 	}
+
 	var (
-		users []sqlc.User
+		users []sqlc.ListUsersRow
 		total int64
 	)
 	g, ctx := errgroup.WithContext(ctx)
 	g.Go(func() error {
 		var err error
-		users, err = us.repo.GetUsers(ctx, params)
+		// users, err = us.repo.GetUsers(ctx, query)
+		users, err = us.repo.GetUsersV2(ctx, filter)
 		return err
 	})
 	g.Go(func() error {
@@ -53,25 +56,28 @@ func (us *userService) GetUsers(ctx context.Context, param v1dto.ListUsersQuery)
 		return err
 	})
 	if err := g.Wait(); err != nil {
-		return nil, err
+		return nil, apperror.NewError(fmt.Sprintf("Get user: %s", err), apperror.ErrCodeInternal)
 	}
 
 	data := make([]v1dto.UserDTO, len(users))
 	for i, u := range users {
-		data[i] = *v1dto.ToUserResponse(u)
+		data[i] = *v1dto.ToUserDTOFromList(u)
 	}
+	totalPages := int32(math.Ceil(float64(total) / float64(param.Limit)))
+
 	return &v1dto.PaginationResponse[v1dto.UserDTO]{
-		Data:  data,
-		Total: total,
-		Page:  int(param.Page),
-		Limit: int(param.Limit),
+		Data:       data,
+		Total:      total,
+		Page:       int(param.Page),
+		Limit:      int(param.Limit),
+		TotalPages: totalPages,
 	}, nil
 
 }
-func (us *userService) CreateUser(ctx context.Context, req v1dto.CreateUserRequest) (sqlc.User, error) {
+func (us *userService) CreateUser(ctx context.Context, req v1dto.CreateUserRequest) (sqlc.CreateUserRow, error) {
 	hashedPw, err := us.passwordService.HashPassword(req.Password)
 	if err != nil {
-		return sqlc.User{}, apperror.WrapError(err, "Internal server error", apperror.ErrCodeInternal)
+		return sqlc.CreateUserRow{}, apperror.WrapError(err, "Internal server error", apperror.ErrCodeInternal)
 	}
 
 	user, err := us.repo.Create(ctx, sqlc.CreateUserParams{
@@ -82,32 +88,32 @@ func (us *userService) CreateUser(ctx context.Context, req v1dto.CreateUserReque
 	})
 	if err != nil {
 		if errors.Is(err, domainerror.ErrEmailAlreadyExists) {
-			return sqlc.User{}, apperror.NewError("email already exists", apperror.ErrCodeConflict)
+			return sqlc.CreateUserRow{}, apperror.NewError("email already exists", apperror.ErrCodeConflict)
 		}
 		if errors.Is(err, domainerror.ErrUserNameAlreadyExists) {
-			return sqlc.User{}, apperror.NewError("username already exists", apperror.ErrCodeConflict)
+			return sqlc.CreateUserRow{}, apperror.NewError("username already exists", apperror.ErrCodeConflict)
 		}
 
-		return sqlc.User{}, apperror.WrapError(err, "Fail to create user", apperror.ErrCodeInternal)
+		return sqlc.CreateUserRow{}, apperror.WrapError(err, "Fail to create user", apperror.ErrCodeInternal)
 	}
 
 	return user, nil
 }
-func (us *userService) GetUserByUUID(ctx context.Context, ID uuid.UUID) (sqlc.User, error) {
+func (us *userService) GetUserByUUID(ctx context.Context, ID uuid.UUID) (sqlc.FindUserByIDRow, error) {
 	user, err := us.repo.FindByUUID(ctx, ID)
 	if err != nil {
 		if errors.Is(err, domainerror.ErrUserNotFound) {
-			return sqlc.User{}, apperror.NewError("User not found", apperror.ErrCodeNotFound)
+			return sqlc.FindUserByIDRow{}, apperror.NewError("User not found", apperror.ErrCodeNotFound)
 		}
-		return sqlc.User{}, apperror.WrapError(err, "Fail to find user", apperror.ErrCodeInternal)
+		return sqlc.FindUserByIDRow{}, apperror.WrapError(err, "Fail to find user", apperror.ErrCodeInternal)
 	}
 	return user, nil
 }
-func (us *userService) UpdateUser(ctx context.Context, params sqlc.UpdateUserByIDParams) (sqlc.User, error) {
+func (us *userService) UpdateUser(ctx context.Context, params sqlc.UpdateUserByIDParams) (sqlc.UpdateUserByIDRow, error) {
 	if params.PasswordHash != nil {
 		hashedPw, err := us.passwordService.HashPassword(*params.PasswordHash)
 		if err != nil {
-			return sqlc.User{}, apperror.WrapError(err, "Internal server error", apperror.ErrCodeInternal)
+			return sqlc.UpdateUserByIDRow{}, apperror.WrapError(err, "Internal server error", apperror.ErrCodeInternal)
 		}
 		params.PasswordHash = &hashedPw
 	}
@@ -115,15 +121,15 @@ func (us *userService) UpdateUser(ctx context.Context, params sqlc.UpdateUserByI
 	user, err := us.repo.Update(ctx, params)
 	if err != nil {
 		if errors.Is(err, domainerror.ErrUserNotFound) {
-			return sqlc.User{}, apperror.NewError("User not found", apperror.ErrCodeNotFound)
+			return sqlc.UpdateUserByIDRow{}, apperror.NewError("User not found", apperror.ErrCodeNotFound)
 		}
 		if errors.Is(err, domainerror.ErrEmailAlreadyExists) {
-			return sqlc.User{}, apperror.NewError("email already exists", apperror.ErrCodeConflict)
+			return sqlc.UpdateUserByIDRow{}, apperror.NewError("email already exists", apperror.ErrCodeConflict)
 		}
 		if errors.Is(err, domainerror.ErrUserNameAlreadyExists) {
-			return sqlc.User{}, apperror.NewError("username already exists", apperror.ErrCodeConflict)
+			return sqlc.UpdateUserByIDRow{}, apperror.NewError("username already exists", apperror.ErrCodeConflict)
 		}
-		return sqlc.User{}, apperror.WrapError(err, "Fail to update user", apperror.ErrCodeInternal)
+		return sqlc.UpdateUserByIDRow{}, apperror.WrapError(err, "Fail to update user", apperror.ErrCodeInternal)
 	}
 	return user, nil
 

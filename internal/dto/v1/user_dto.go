@@ -12,6 +12,28 @@ type UserDTO struct {
 	Email    string `json:"email"`
 }
 
+func toUserDTO(id uuid.UUID, name, username, email string) *UserDTO {
+	return &UserDTO{
+		UUID:     id.String(),
+		Name:     name,
+		Username: username,
+		Email:    email,
+	}
+}
+
+func ToUserDTOFromList(u sqlc.ListUsersRow) *UserDTO {
+	return toUserDTO(u.UserID, u.Name, u.UserName, u.Email)
+}
+func ToUserDTOFromCreate(u sqlc.CreateUserRow) *UserDTO {
+	return toUserDTO(u.UserID, u.Name, u.UserName, u.Email)
+}
+func ToUserDTOFromFind(u sqlc.FindUserByIDRow) *UserDTO {
+	return toUserDTO(u.UserID, u.Name, u.UserName, u.Email)
+}
+func ToUserDTOFromUpdate(u sqlc.UpdateUserByIDRow) *UserDTO {
+	return toUserDTO(u.UserID, u.Name, u.UserName, u.Email)
+}
+
 type CreateUserRequest struct {
 	UserName string `json:"userName" binding:"required"`
 	Name     string `json:"name" binding:"required"`
@@ -80,18 +102,18 @@ func (q *ListUsersQuery) Normalize() {
 	}
 }
 
-type PaginationResponse[T any] struct {
-	Data  []T   `json:"data"`
-	Total int64 `json:"total"`
-	Page  int   `json:"page"`
-	Limit int   `json:"limit"`
+type UserListItem struct {
+	UUID      string `json:"uuid"`
+	Name      string `json:"name"`
+	Username  string `json:"username"`
+	Email     string `json:"email"`
+	CreatedAt string `json:"created_at"`
 }
 
-func ToUserResponse(user sqlc.User) *UserDTO {
-	return &UserDTO{
-		UUID:     user.UserID.String(),
-		Name:     user.Name,
-		Username: user.UserName,
-		Email:    user.Email,
-	}
+type PaginationResponse[T any] struct {
+	Data       []T   `json:"data"`
+	Total      int64 `json:"total"`
+	Page       int   `json:"page"`
+	Limit      int   `json:"limit"`
+	TotalPages int32 `json:"total_pages"`
 }

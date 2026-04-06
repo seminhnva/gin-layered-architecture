@@ -12,7 +12,7 @@ type UserModule struct {
 }
 
 func NewUserModule(deps *ModuleDeps) *UserModule {
-	userRepo := repository.NewUserRepo(deps.Queries)
+	userRepo := repository.NewUserRepo(deps.db, deps.Queries)
 	userSerivce := service.NewUserService(userRepo, deps.PasswordService)
 	userHanlder := handler.NewUserHandler(userSerivce)
 	userRoutes := routes.NewUserRoutes(userHanlder)

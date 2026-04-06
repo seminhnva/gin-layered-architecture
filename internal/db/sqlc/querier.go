@@ -10,13 +10,13 @@ import (
 
 type Querier interface {
 	CountUsers(ctx context.Context, arg CountUsersParams) (int64, error)
-	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
-	FindUserByID(ctx context.Context, arg FindUserByIDParams) (User, error)
+	CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error)
+	FindUserByID(ctx context.Context, arg FindUserByIDParams) (FindUserByIDRow, error)
 	HardDeleteUser(ctx context.Context, arg HardDeleteUserParams) (int64, error)
-	ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error)
-	RestoreUser(ctx context.Context, arg RestoreUserParams) (User, error)
+	ListUsers(ctx context.Context, arg ListUsersParams) ([]ListUsersRow, error)
+	RestoreUser(ctx context.Context, arg RestoreUserParams) (RestoreUserRow, error)
 	SoftDeleteUser(ctx context.Context, arg SoftDeleteUserParams) (int64, error)
-	UpdateUserByID(ctx context.Context, arg UpdateUserByIDParams) (User, error)
+	UpdateUserByID(ctx context.Context, arg UpdateUserByIDParams) (UpdateUserByIDRow, error)
 }
 
 var _ Querier = (*Queries)(nil)

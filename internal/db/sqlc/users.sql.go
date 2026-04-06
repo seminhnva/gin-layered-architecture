@@ -7,6 +7,7 @@ package sqlc
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -43,7 +44,7 @@ INSERT INTO users(
     password_hash
 ) VALUES (
     $1, $2, $3, $4
-) RETURNING user_id, user_name, name, email, password_hash, created_at, updated_at, deleted_at
+) RETURNING user_id, user_name, email, name
 `
 
 type CreateUserParams struct {
@@ -53,29 +54,32 @@ type CreateUserParams struct {
 	PasswordHash string `json:"password_hash"`
 }
 
-func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
+type CreateUserRow struct {
+	UserID   uuid.UUID `json:"user_id"`
+	UserName string    `json:"user_name"`
+	Email    string    `json:"email"`
+	Name     string    `json:"name"`
+}
+
+func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error) {
 	row := q.db.QueryRow(ctx, createUser,
 		arg.UserName,
 		arg.Name,
 		arg.Email,
 		arg.PasswordHash,
 	)
-	var i User
+	var i CreateUserRow
 	err := row.Scan(
 		&i.UserID,
 		&i.UserName,
-		&i.Name,
 		&i.Email,
-		&i.PasswordHash,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.DeletedAt,
+		&i.Name,
 	)
 	return i, err
 }
 
 const findUserByID = `-- name: FindUserByID :one
-SELECT user_id, user_name, name, email, password_hash, created_at, updated_at, deleted_at
+SELECT user_id, user_name, email, name
 FROM users
 WHERE user_id = $1 AND deleted_at IS NULL
 `
@@ -84,18 +88,21 @@ type FindUserByIDParams struct {
 	UserID uuid.UUID `json:"user_id"`
 }
 
-func (q *Queries) FindUserByID(ctx context.Context, arg FindUserByIDParams) (User, error) {
+type FindUserByIDRow struct {
+	UserID   uuid.UUID `json:"user_id"`
+	UserName string    `json:"user_name"`
+	Email    string    `json:"email"`
+	Name     string    `json:"name"`
+}
+
+func (q *Queries) FindUserByID(ctx context.Context, arg FindUserByIDParams) (FindUserByIDRow, error) {
 	row := q.db.QueryRow(ctx, findUserByID, arg.UserID)
-	var i User
+	var i FindUserByIDRow
 	err := row.Scan(
 		&i.UserID,
 		&i.UserName,
-		&i.Name,
 		&i.Email,
-		&i.PasswordHash,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.DeletedAt,
+		&i.Name,
 	)
 	return i, err
 }
@@ -118,7 +125,8 @@ func (q *Queries) HardDeleteUser(ctx context.Context, arg HardDeleteUserParams) 
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT user_id, user_name, name, email, password_hash, created_at, updated_at, deleted_at FROM users
+SELECT user_id,user_name, email, name
+FROM users
 WHERE
     deleted_at IS NULL
     AND (
@@ -146,7 +154,14 @@ type ListUsersParams struct {
 	LimitVal  int32   `json:"limit_val"`
 }
 
-func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error) {
+type ListUsersRow struct {
+	UserID   uuid.UUID `json:"user_id"`
+	UserName string    `json:"user_name"`
+	Email    string    `json:"email"`
+	Name     string    `json:"name"`
+}
+
+func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]ListUsersRow, error) {
 	rows, err := q.db.Query(ctx, listUsers,
 		arg.Search,
 		arg.SortBy,
@@ -158,18 +173,14 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]User, e
 		return nil, err
 	}
 	defer rows.Close()
-	items := []User{}
+	items := []ListUsersRow{}
 	for rows.Next() {
-		var i User
+		var i ListUsersRow
 		if err := rows.Scan(
 			&i.UserID,
 			&i.UserName,
-			&i.Name,
 			&i.Email,
-			&i.PasswordHash,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-			&i.DeletedAt,
+			&i.Name,
 		); err != nil {
 			return nil, err
 		}
@@ -186,25 +197,30 @@ UPDATE users
 SET deleted_at = NULL
 WHERE user_id = $1
   AND deleted_at IS NOT NULL
-RETURNING user_id, user_name, name, email, password_hash, created_at, updated_at, deleted_at
+RETURNING user_id, user_name, email, name, updated_at
 `
 
 type RestoreUserParams struct {
 	UserID uuid.UUID `json:"user_id"`
 }
 
-func (q *Queries) RestoreUser(ctx context.Context, arg RestoreUserParams) (User, error) {
+type RestoreUserRow struct {
+	UserID    uuid.UUID `json:"user_id"`
+	UserName  string    `json:"user_name"`
+	Email     string    `json:"email"`
+	Name      string    `json:"name"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+func (q *Queries) RestoreUser(ctx context.Context, arg RestoreUserParams) (RestoreUserRow, error) {
 	row := q.db.QueryRow(ctx, restoreUser, arg.UserID)
-	var i User
+	var i RestoreUserRow
 	err := row.Scan(
 		&i.UserID,
 		&i.UserName,
-		&i.Name,
 		&i.Email,
-		&i.PasswordHash,
-		&i.CreatedAt,
+		&i.Name,
 		&i.UpdatedAt,
-		&i.DeletedAt,
 	)
 	return i, err
 }
@@ -236,7 +252,7 @@ SET
     password_hash = COALESCE($4, password_hash),
     updated_at    = NOW()
 WHERE user_id = $5 AND deleted_at IS NULL
-RETURNING user_id, user_name, name, email, password_hash, created_at, updated_at, deleted_at
+RETURNING user_id, user_name, name, email, updated_at
 `
 
 type UpdateUserByIDParams struct {
@@ -247,7 +263,15 @@ type UpdateUserByIDParams struct {
 	UserID       uuid.UUID `json:"user_id"`
 }
 
-func (q *Queries) UpdateUserByID(ctx context.Context, arg UpdateUserByIDParams) (User, error) {
+type UpdateUserByIDRow struct {
+	UserID    uuid.UUID `json:"user_id"`
+	UserName  string    `json:"user_name"`
+	Name      string    `json:"name"`
+	Email     string    `json:"email"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+func (q *Queries) UpdateUserByID(ctx context.Context, arg UpdateUserByIDParams) (UpdateUserByIDRow, error) {
 	row := q.db.QueryRow(ctx, updateUserByID,
 		arg.Name,
 		arg.Email,
@@ -255,16 +279,13 @@ func (q *Queries) UpdateUserByID(ctx context.Context, arg UpdateUserByIDParams) 
 		arg.PasswordHash,
 		arg.UserID,
 	)
-	var i User
+	var i UpdateUserByIDRow
 	err := row.Scan(
 		&i.UserID,
 		&i.UserName,
 		&i.Name,
 		&i.Email,
-		&i.PasswordHash,
-		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.DeletedAt,
 	)
 	return i, err
 }
