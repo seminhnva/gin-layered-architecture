@@ -10,8 +10,8 @@ type authService struct {
 	passwordService auth.Hasher
 }
 
-func NewAuthService(repo repository.UserRepository, passwordService auth.Hasher) UserService {
-	return &userService{
+func NewAuthService(repo repository.UserRepository, passwordService auth.Hasher) AuthSerivce {
+	return &authService{
 		repo:            repo,
 		passwordService: passwordService,
 	}

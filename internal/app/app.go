@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rs/zerolog"
 	"github.com/seminhnva/gin-layered-architecture/internal/auth"
+	jwtService "github.com/seminhnva/gin-layered-architecture/internal/auth/jwt"
 	passwordService "github.com/seminhnva/gin-layered-architecture/internal/auth/password"
 	"github.com/seminhnva/gin-layered-architecture/internal/bootstrap"
 	"github.com/seminhnva/gin-layered-architecture/internal/config"
@@ -36,6 +37,7 @@ type ModuleDeps struct {
 	db              *pgxpool.Pool
 	Queries         *sqlc.Queries
 	PasswordService auth.Hasher
+	JWTService      auth.JWT
 }
 
 func NewApplication(cfg *config.Config) (*Application, error) {
@@ -47,6 +49,7 @@ func NewApplication(cfg *config.Config) (*Application, error) {
 	deps := &ModuleDeps{
 		Queries:         sqlc.New(dbpool),
 		PasswordService: passwordService.NewPasswordService(),
+		JWTService:      jwtService.NewJWTService(cfg.JWT.Secret, cfg.JWT.AccessTokenTTL, cfg.JWT.RefreshTokenTTL, nil),
 		db:              dbpool,
 	}
 	r := gin.New()

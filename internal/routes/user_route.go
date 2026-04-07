@@ -2,14 +2,14 @@ package routes
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/seminhnva/gin-layered-architecture/internal/api/handler/v1"
+	v1handler "github.com/seminhnva/gin-layered-architecture/internal/api/handler/v1"
 )
 
 type UserRoute struct {
-	handler *handler.UserHandler
+	handler *v1handler.UserHandler
 }
 
-func NewUserRoutes(handler *handler.UserHandler) *UserRoute {
+func NewUserRoutes(handler *v1handler.UserHandler) *UserRoute {
 	return &UserRoute{
 		handler: handler,
 	}

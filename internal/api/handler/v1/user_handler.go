@@ -1,4 +1,4 @@
-package handler
+package v1handler
 
 import (
 	"net/http"
@@ -9,14 +9,14 @@ import (
 	"github.com/seminhnva/gin-layered-architecture/internal/common/apperror"
 	"github.com/seminhnva/gin-layered-architecture/internal/common/response"
 	v1dto "github.com/seminhnva/gin-layered-architecture/internal/dto/v1"
-	"github.com/seminhnva/gin-layered-architecture/internal/service/v1"
+	v1service "github.com/seminhnva/gin-layered-architecture/internal/service/v1"
 )
 
 type UserHandler struct {
-	service service.UserService
+	service v1service.UserService
 }
 
-func NewUserHandler(service service.UserService) *UserHandler {
+func NewUserHandler(service v1service.UserService) *UserHandler {
 	return &UserHandler{
 		service: service}
 }

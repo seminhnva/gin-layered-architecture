@@ -1,7 +1,6 @@
 package jwtService
 
 import (
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -22,12 +21,16 @@ type JWTService struct {
 	cache           any
 }
 
-type Claims struct {
-	Data []byte `json:"data"`
+type claims struct {
+	UserID   string   `json:"sub"`
+	Email    string   `json:"email"`
+	UserName string   `json:"user_name"`
+	Name     string   `json:"name"`
+	Roles    []string `json:"roles,omitempty"`
 	jwt.RegisteredClaims
 }
 
-func NewJWTSerivice(jwtSecret string, accessTokenTTL, refreshTokenTTL time.Duration, cache any) auth.JWT {
+func NewJWTService(jwtSecret string, accessTokenTTL, refreshTokenTTL time.Duration, cache any) auth.JWT {
 	return &JWTService{
 		secret:          jwtSecret,
 		accessTokenTTL:  accessTokenTTL,
@@ -36,30 +39,34 @@ func NewJWTSerivice(jwtSecret string, accessTokenTTL, refreshTokenTTL time.Durat
 	}
 }
 
+func NewJWTSerivice(jwtSecret string, accessTokenTTL, refreshTokenTTL time.Duration, cache any) auth.JWT {
+	return NewJWTService(jwtSecret, accessTokenTTL, refreshTokenTTL, cache)
+}
+
 func (js *JWTService) GenerateAccessToken(payload auth.TokenPayload) (string, error) {
+	now := time.Now().UTC()
 
-	data, err := json.Marshal(payload)
-	if err != nil {
-		return "", err
-	}
-
-	claims := &Claims{
-		Data: data,
+	tokenClaims := &claims{
+		UserID:   payload.UserID,
+		Email:    payload.Email,
+		UserName: payload.UserName,
+		Name:     payload.Name,
+		Roles:    payload.Roles,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ID:        uuid.NewString(),
 			Issuer:    Issuer,
-			IssuedAt:  jwt.NewNumericDate(time.Now().UTC()),
-			ExpiresAt: jwt.NewNumericDate(time.Now().UTC().Add(js.accessTokenTTL)),
+			Subject:   payload.UserID,
+			IssuedAt:  jwt.NewNumericDate(now),
+			ExpiresAt: jwt.NewNumericDate(now.Add(js.accessTokenTTL)),
 		},
 	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, tokenClaims)
 	return token.SignedString([]byte(js.secret))
 }
 
-func (js *JWTService) VerifyToken(tokenString string) (*Claims, error) {
-	claims := &Claims{}
-	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
-		// prevent alg:none attack
+func (js *JWTService) VerifyToken(tokenString string) (*auth.TokenClaims, error) {
+	tokenClaims := &claims{}
+	token, err := jwt.ParseWithClaims(tokenString, tokenClaims, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
@@ -68,5 +75,23 @@ func (js *JWTService) VerifyToken(tokenString string) (*Claims, error) {
 	if err != nil || !token.Valid {
 		return nil, apperror.NewError("Invalid token", apperror.ErrCodeUnauthorized)
 	}
-	return claims, nil
+
+	verifiedClaims := &auth.TokenClaims{
+		UserID:   tokenClaims.UserID,
+		Email:    tokenClaims.Email,
+		UserName: tokenClaims.UserName,
+		Name:     tokenClaims.Name,
+		Roles:    tokenClaims.Roles,
+		TokenID:  tokenClaims.ID,
+		Issuer:   tokenClaims.Issuer,
+	}
+
+	if tokenClaims.IssuedAt != nil {
+		verifiedClaims.IssuedAt = tokenClaims.IssuedAt.Time
+	}
+	if tokenClaims.ExpiresAt != nil {
+		verifiedClaims.ExpiresAt = tokenClaims.ExpiresAt.Time
+	}
+
+	return verifiedClaims, nil
 }

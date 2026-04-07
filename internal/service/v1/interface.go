@@ -1,4 +1,4 @@
-package service
+package v1service
 
 import (
 	"context"
@@ -14,7 +14,4 @@ type UserService interface {
 	GetUserByUUID(ctx context.Context, ID uuid.UUID) (sqlc.FindUserByIDRow, error)
 	UpdateUser(ctx context.Context, params sqlc.UpdateUserByIDParams) (sqlc.UpdateUserByIDRow, error)
 	DeleteUser(ctx context.Context, ID uuid.UUID) error
-}
-
-type AuthSerivce interface {
 }
