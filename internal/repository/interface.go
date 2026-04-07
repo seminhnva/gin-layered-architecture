@@ -23,3 +23,6 @@ type UserListFilter struct {
 	Order  string
 	Search *string
 }
+
+type AuthRepository interface {
+}

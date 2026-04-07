@@ -10,7 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rs/zerolog"
 	"github.com/seminhnva/gin-layered-architecture/internal/auth"
-	"github.com/seminhnva/gin-layered-architecture/internal/auth/password"
+	passwordService "github.com/seminhnva/gin-layered-architecture/internal/auth/password"
 	"github.com/seminhnva/gin-layered-architecture/internal/bootstrap"
 	"github.com/seminhnva/gin-layered-architecture/internal/config"
 	"github.com/seminhnva/gin-layered-architecture/internal/constants"
@@ -46,7 +46,7 @@ func NewApplication(cfg *config.Config) (*Application, error) {
 
 	deps := &ModuleDeps{
 		Queries:         sqlc.New(dbpool),
-		PasswordService: password.NewPasswordService(),
+		PasswordService: passwordService.NewPasswordService(),
 		db:              dbpool,
 	}
 	r := gin.New()

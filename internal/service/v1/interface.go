@@ -15,3 +15,6 @@ type UserService interface {
 	UpdateUser(ctx context.Context, params sqlc.UpdateUserByIDParams) (sqlc.UpdateUserByIDRow, error)
 	DeleteUser(ctx context.Context, ID uuid.UUID) error
 }
+
+type AuthSerivce interface {
+}

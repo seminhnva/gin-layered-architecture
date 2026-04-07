@@ -1,4 +1,4 @@
-package password
+package passwordService
 
 import (
 	"github.com/alexedwards/argon2id"
