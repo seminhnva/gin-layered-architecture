@@ -9,7 +9,7 @@ import (
 type AuthSerivce interface {
 	Login(ctx context.Context, params dto.LoginRequest) (dto.TokenInfo, error)
 	Logout(ctx context.Context, accessToken, rawRefreshToken string) error
-	RefreshToken(ctx context.Context) error
+	RefreshToken(ctx context.Context, refreshToken string) (dto.TokenInfo, error)
 	ForgotPassword(ctx context.Context) error
 	ResetPassword(ctx context.Context) error
 }

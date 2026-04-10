@@ -13,8 +13,8 @@ type AuthModule struct {
 }
 
 func NewAuthModule(deps *ModuleDeps, cache cache.RedisCacheService, env string) *AuthModule {
-	authRepo := repository.NewAuthRepo(deps.DB, deps.Queries)
-	authSerivce := service.NewAuthService(authRepo, deps.PasswordService, deps.JWTService, cache)
+	userRepo := repository.NewUserRepo(deps.DB, deps.Queries)
+	authSerivce := service.NewAuthService(userRepo, deps.PasswordService, deps.JWTService, cache)
 	authHanlder := handler.NewAuthHandler(authSerivce, env)
 	authRoutes := routes.NewAuthRoutes(authHanlder)
 	return &AuthModule{

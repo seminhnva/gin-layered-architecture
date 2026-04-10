@@ -2,11 +2,13 @@ package service
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"time"
 
 	"github.com/seminhnva/gin-layered-architecture/internal/auth"
-	jwtService "github.com/seminhnva/gin-layered-architecture/internal/auth/jwt"
 	"github.com/seminhnva/gin-layered-architecture/internal/common/apperror"
+	"github.com/seminhnva/gin-layered-architecture/internal/common/domainerror"
 	"github.com/seminhnva/gin-layered-architecture/internal/constants"
 	"github.com/seminhnva/gin-layered-architecture/internal/db/sqlc"
 	"github.com/seminhnva/gin-layered-architecture/internal/dto"
@@ -16,15 +18,15 @@ import (
 )
 
 type authService struct {
-	repo            repository.AuthRepository
+	userRepo        repository.UserRepository
 	passwordService auth.Hasher
 	jwtService      auth.JWT
 	cache           cache.RedisCacheService
 }
 
-func NewAuthService(repo repository.AuthRepository, passwordService auth.Hasher, jwtService auth.JWT, cache cache.RedisCacheService) AuthSerivce {
+func NewAuthService(userRepo repository.UserRepository, passwordService auth.Hasher, jwtService auth.JWT, cache cache.RedisCacheService) AuthSerivce {
 	return &authService{
-		repo:            repo,
+		userRepo:        userRepo,
 		passwordService: passwordService,
 		jwtService:      jwtService,
 		cache:           cache,
@@ -34,10 +36,13 @@ func NewAuthService(repo repository.AuthRepository, passwordService auth.Hasher,
 func (as *authService) Login(ctx context.Context, params dto.LoginRequest) (dto.TokenInfo, error) {
 	params.Email = utils.NormalizeString(params.Email)
 
-	user, err := as.repo.GetByEmail(ctx, sqlc.GetByEmailParams{
+	user, err := as.userRepo.GetByEmail(ctx, sqlc.GetByEmailParams{
 		Email: params.Email,
 	})
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return dto.TokenInfo{}, apperror.NewError("Invalid email or password", apperror.ErrCodeUnauthorized)
+		}
 		return dto.TokenInfo{}, err
 	}
 
@@ -51,7 +56,7 @@ func (as *authService) Login(ctx context.Context, params dto.LoginRequest) (dto.
 
 	accessToken, err := as.jwtService.GenerateAccessToken(auth.TokenPayload{
 		UserID:   user.UserID.String(),
-		Email:    user.UserName,
+		Email:    user.Email,
 		Name:     user.Name,
 		UserName: user.UserName,
 	})
@@ -70,29 +75,93 @@ func (as *authService) Login(ctx context.Context, params dto.LoginRequest) (dto.
 		RefreshTokenExpiresAt: storeToken.ExpiresAt,
 	}
 
-	cacheKey := constants.RefreshTokenCachePrefix + jwtService.HashToken(tokenInfo.RefreshToken)
-	if err := as.cache.Set(cacheKey, user.UserID.String(), time.Until(storeToken.ExpiresAt)); err != nil {
+	if err := as.storeRefreshToken(storeToken); err != nil {
 		return dto.TokenInfo{}, err
+
 	}
 	return tokenInfo, nil
 }
+
 func (as *authService) Logout(ctx context.Context, accessToken, rawRefreshToken string) error {
-	_, err := as.jwtService.VerifyToken(accessToken)
+	_, err := as.jwtService.VerifyAcessToken(accessToken)
 	if err != nil {
 		return apperror.NewError("Invalid access token", apperror.ErrCodeUnauthorized)
 	}
-
-	cacheKey := constants.RefreshTokenCachePrefix + jwtService.HashToken(rawRefreshToken)
-	as.cache.Del(cacheKey)
-
+	if err := as.deleteRefreshToken(rawRefreshToken); err != nil {
+		return err
+	}
 	return nil
 }
-func (as *authService) RefreshToken(ctx context.Context) error {
-	return nil
+
+func (as *authService) RefreshToken(ctx context.Context, rawRefreshToken string) (dto.TokenInfo, error) {
+	storedRefreshToken, err := as.verifyRefreshToken(rawRefreshToken)
+	if err != nil {
+		return dto.TokenInfo{}, err
+	}
+
+	user, err := as.userRepo.FindByUUID(ctx, storedRefreshToken.UserID)
+	if err != nil {
+		if errors.Is(err, domainerror.ErrUserNotFound) {
+			return dto.TokenInfo{}, apperror.NewError("User not found", apperror.ErrCodeNotFound)
+		}
+		return dto.TokenInfo{}, apperror.WrapError(err, "Fail to find user", apperror.ErrCodeInternal)
+	}
+	accessToken, err := as.jwtService.GenerateAccessToken(auth.TokenPayload{
+		UserID:   user.UserID.String(),
+		Email:    user.Email,
+		Name:     user.Name,
+		UserName: user.UserName,
+	})
+	if err != nil {
+		return dto.TokenInfo{}, err
+	}
+
+	refreshToken, storeToken, err := as.jwtService.GenerateRefreshToken(user.UserID)
+	if err != nil {
+		return dto.TokenInfo{}, err
+	}
+
+	tokenInfo := dto.TokenInfo{
+		AccessToken:           accessToken,
+		RefreshToken:          refreshToken,
+		RefreshTokenExpiresAt: storeToken.ExpiresAt,
+	}
+
+	if err := as.storeRefreshToken(storeToken); err != nil {
+		return dto.TokenInfo{}, err
+
+	}
+
+	if err := as.deleteRefreshToken(rawRefreshToken); err != nil {
+		return dto.TokenInfo{}, err
+	}
+	return tokenInfo, nil
 }
 func (as *authService) ForgotPassword(ctx context.Context) error {
 	return nil
 }
 func (as *authService) ResetPassword(ctx context.Context) error {
 	return nil
+}
+
+func (as *authService) storeRefreshToken(token auth.RefreshToken) error {
+	cacheKey := constants.RefreshTokenCachePrefix + token.TokenHash
+	return as.cache.Set(cacheKey, token, time.Until(token.ExpiresAt))
+}
+
+func (as *authService) deleteRefreshToken(rawRefreshToken string) error {
+	cacheKey := constants.RefreshTokenCachePrefix + auth.HashToken(rawRefreshToken)
+	return as.cache.Del(cacheKey)
+}
+
+func (as *authService) verifyRefreshToken(rawRefreshToken string) (auth.RefreshToken, error) {
+	cacheKey := constants.RefreshTokenCachePrefix + auth.HashToken(rawRefreshToken)
+	var storedRefreshToken auth.RefreshToken
+	if err := as.cache.Get(cacheKey, &storedRefreshToken); err != nil {
+		return auth.RefreshToken{}, apperror.NewError("Refresh token is invalid or expired", apperror.ErrCodeUnauthorized)
+	}
+	if storedRefreshToken.ExpiresAt.Before(time.Now()) {
+		return auth.RefreshToken{}, apperror.NewError("Refresh token is invalid or expired", apperror.ErrCodeUnauthorized)
+	}
+	return storedRefreshToken, nil
 }

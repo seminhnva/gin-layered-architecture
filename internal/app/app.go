@@ -50,16 +50,16 @@ func NewApplication(cfg *config.Config) (*Application, error) {
 	}
 
 	redisClient, err := db.NewRedis(context.Background(), cfg.Redis)
-	cacheRedisService := cache.NewRedisCacheService(redisClient)
-
 	if err != nil {
+		dbpool.Close()
 		return nil, fmt.Errorf("create redis : %w", err)
 	}
+	cacheRedisService := cache.NewRedisCacheService(redisClient)
 
 	deps := &ModuleDeps{
 		Queries:         sqlc.New(dbpool),
 		PasswordService: passwordService.NewPasswordService(),
-		JWTService:      jwtService.NewJWTService(cfg.JWT.Secret, cfg.JWT.AccessTokenTTL, cfg.JWT.RefreshTokenTTL, nil),
+		JWTService:      jwtService.NewJWTService(cfg.JWT.Secret, cfg.JWT.AccessTokenTTL, cfg.JWT.RefreshTokenTTL),
 		DB:              dbpool,
 		Redis:           redisClient,
 	}

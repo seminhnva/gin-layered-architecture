@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"net/http"
 	"strings"
@@ -45,10 +47,8 @@ type Hasher interface {
 
 type JWT interface {
 	GenerateAccessToken(payload TokenPayload) (string, error)
-	VerifyToken(tokenString string) (*TokenClaims, error)
+	VerifyAcessToken(tokenString string) (*TokenClaims, error)
 	GenerateRefreshToken(userID uuid.UUID) (rawToken string, stored RefreshToken, err error)
-	// 	ValidateRefreshToken(token string) (RefreshToken, error)
-	// 	RevokeRefreshToken(tokenStr string) error
 }
 
 func GetBearerToken(headers http.Header) (string, error) {
@@ -76,4 +76,9 @@ func GetAPIKey(headers http.Header) (string, error) {
 	}
 	return parts[1], nil
 
+}
+
+func HashToken(rawToken string) string {
+	hash := sha256.Sum256([]byte(rawToken))
+	return hex.EncodeToString(hash[:])
 }

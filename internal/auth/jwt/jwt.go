@@ -2,9 +2,7 @@ package jwtService
 
 import (
 	"crypto/rand"
-	"crypto/sha256"
 	"encoding/base64"
-	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -22,7 +20,6 @@ type JWTService struct {
 	secret          string
 	accessTokenTTL  time.Duration
 	refreshTokenTTL time.Duration
-	cache           any
 }
 
 type claims struct {
@@ -34,17 +31,16 @@ type claims struct {
 	jwt.RegisteredClaims
 }
 
-func NewJWTService(jwtSecret string, accessTokenTTL, refreshTokenTTL time.Duration, cache any) auth.JWT {
+func NewJWTService(jwtSecret string, accessTokenTTL, refreshTokenTTL time.Duration) auth.JWT {
 	return &JWTService{
 		secret:          jwtSecret,
 		accessTokenTTL:  accessTokenTTL,
 		refreshTokenTTL: refreshTokenTTL,
-		cache:           cache,
 	}
 }
 
-func NewJWTSerivice(jwtSecret string, accessTokenTTL, refreshTokenTTL time.Duration, cache any) auth.JWT {
-	return NewJWTService(jwtSecret, accessTokenTTL, refreshTokenTTL, cache)
+func NewJWTSerivice(jwtSecret string, accessTokenTTL, refreshTokenTTL time.Duration) auth.JWT {
+	return NewJWTService(jwtSecret, accessTokenTTL, refreshTokenTTL)
 }
 
 func (js *JWTService) GenerateAccessToken(payload auth.TokenPayload) (string, error) {
@@ -68,7 +64,7 @@ func (js *JWTService) GenerateAccessToken(payload auth.TokenPayload) (string, er
 	return token.SignedString([]byte(js.secret))
 }
 
-func (js *JWTService) VerifyToken(tokenString string) (*auth.TokenClaims, error) {
+func (js *JWTService) VerifyAcessToken(tokenString string) (*auth.TokenClaims, error) {
 	tokenClaims := &claims{}
 	token, err := jwt.ParseWithClaims(tokenString, tokenClaims, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
@@ -110,17 +106,11 @@ func (js *JWTService) GenerateRefreshToken(userID uuid.UUID) (rawToken string, s
 
 	now := time.Now().UTC()
 	stored = auth.RefreshToken{
-		TokenHash: HashToken(rawToken),
+		TokenHash: auth.HashToken(rawToken),
 		UserID:    userID,
 		IssuedAt:  now,
 		ExpiresAt: now.Add(js.refreshTokenTTL),
 		Revoked:   false,
 	}
 	return
-}
-
-func HashToken(rawToken string) string {
-	hash := sha256.Sum256([]byte(rawToken))
-	tokenHash := hex.EncodeToString(hash[:])
-	return tokenHash
 }

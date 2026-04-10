@@ -145,3 +145,8 @@ func (ur *UserRepo) SoftDelete(ctx context.Context, ID uuid.UUID) error {
 
 	return nil
 }
+
+func (ur *UserRepo) GetByEmail(ctx context.Context, params sqlc.GetByEmailParams) (sqlc.GetByEmailRow, error) {
+	userInfor, err := ur.queries.GetByEmail(ctx, params)
+	return userInfor, err
+}

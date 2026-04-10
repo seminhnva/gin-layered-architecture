@@ -28,7 +28,7 @@ func (cs *redisCacheService) Get(key string, dest any) error {
 	if err != nil {
 		return err
 	}
-	return json.Unmarshal([]byte(data), &dest)
+	return json.Unmarshal([]byte(data), dest)
 }
 
 func (cs *redisCacheService) Set(key string, value any, ttl time.Duration) error {

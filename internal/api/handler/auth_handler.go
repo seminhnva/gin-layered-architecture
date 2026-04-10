@@ -84,6 +84,35 @@ func (as *AuthHandler) Logout(c *gin.Context) {
 	response.Success(c, http.StatusOK, nil)
 
 }
-func (as *AuthHandler) RefreshToken(c *gin.Context)   {}
+func (as *AuthHandler) RefreshToken(c *gin.Context) {
+	rawRefreshToken, err := c.Cookie(dto.RefreshTokenCookieName)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+
+	tokenInfo, err := as.service.RefreshToken(c.Request.Context(), rawRefreshToken)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+	maxAge := int(time.Until(tokenInfo.RefreshTokenExpiresAt).Seconds())
+
+	c.SetCookie(
+		dto.RefreshTokenCookieName, tokenInfo.RefreshToken,
+		maxAge,
+		"/",
+		"",
+		as.env == "production",
+		true,
+	)
+
+	tokenData := dto.LoginResponse{
+		AccessToken: tokenInfo.AccessToken,
+		TokenType:   "Bearer",
+	}
+	response.Success(c, http.StatusOK, tokenData)
+}
+
 func (as *AuthHandler) ForgotPassword(c *gin.Context) {}
 func (as *AuthHandler) ResetPassword(c *gin.Context)  {}

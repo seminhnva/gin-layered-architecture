@@ -1,6 +1,8 @@
 package dto
 
-import "time"
+import (
+	"time"
+)
 
 const RefreshTokenCookieName = "refresh_token"
 

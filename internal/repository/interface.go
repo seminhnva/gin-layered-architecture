@@ -15,6 +15,7 @@ type UserRepository interface {
 	FindByUUID(ctx context.Context, ID uuid.UUID) (sqlc.FindUserByIDRow, error)
 	Update(ctx context.Context, params sqlc.UpdateUserByIDParams) (sqlc.UpdateUserByIDRow, error)
 	SoftDelete(ctx context.Context, ID uuid.UUID) error
+	GetByEmail(ctx context.Context, params sqlc.GetByEmailParams) (sqlc.GetByEmailRow, error)
 }
 type UserListFilter struct {
 	Page   int32
@@ -22,8 +23,4 @@ type UserListFilter struct {
 	SortBy string
 	Order  string
 	Search *string
-}
-
-type AuthRepository interface {
-	GetByEmail(ctx context.Context, email sqlc.GetByEmailParams) (sqlc.GetByEmailRow, error)
 }
