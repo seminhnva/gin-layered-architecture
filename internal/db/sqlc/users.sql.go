@@ -107,6 +107,37 @@ func (q *Queries) FindUserByID(ctx context.Context, arg FindUserByIDParams) (Fin
 	return i, err
 }
 
+const getByEmail = `-- name: GetByEmail :one
+SELECT user_id, user_name, name, email, password_hash
+FROM users 
+WHERE EMAIL = $1 and deleted_at IS NULL
+`
+
+type GetByEmailParams struct {
+	Email string `json:"email"`
+}
+
+type GetByEmailRow struct {
+	UserID       uuid.UUID `json:"user_id"`
+	UserName     string    `json:"user_name"`
+	Name         string    `json:"name"`
+	Email        string    `json:"email"`
+	PasswordHash string    `json:"password_hash"`
+}
+
+func (q *Queries) GetByEmail(ctx context.Context, arg GetByEmailParams) (GetByEmailRow, error) {
+	row := q.db.QueryRow(ctx, getByEmail, arg.Email)
+	var i GetByEmailRow
+	err := row.Scan(
+		&i.UserID,
+		&i.UserName,
+		&i.Name,
+		&i.Email,
+		&i.PasswordHash,
+	)
+	return i, err
+}
+
 const hardDeleteUser = `-- name: HardDeleteUser :execrows
 DELETE FROM users
 WHERE user_id = $1

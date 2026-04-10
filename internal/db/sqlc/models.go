@@ -10,6 +10,16 @@ import (
 	"github.com/google/uuid"
 )
 
+type RefreshToken struct {
+	RefreshTokenID uuid.UUID  `json:"refresh_token_id"`
+	TokenHash      string     `json:"token_hash"`
+	UserID         uuid.UUID  `json:"user_id"`
+	IssuedAt       time.Time  `json:"issued_at"`
+	ExpiresAt      time.Time  `json:"expires_at"`
+	Revoked        bool       `json:"revoked"`
+	RevokedAt      *time.Time `json:"revoked_at"`
+}
+
 type User struct {
 	UserID       uuid.UUID  `json:"user_id"`
 	UserName     string     `json:"user_name"`

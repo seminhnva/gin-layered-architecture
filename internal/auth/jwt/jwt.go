@@ -1,6 +1,10 @@
 package jwtService
 
 import (
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -94,4 +98,29 @@ func (js *JWTService) VerifyToken(tokenString string) (*auth.TokenClaims, error)
 	}
 
 	return verifiedClaims, nil
+}
+
+func (js *JWTService) GenerateRefreshToken(userID uuid.UUID) (rawToken string, stored auth.RefreshToken, err error) {
+	tokenBytes := make([]byte, 32)
+	if _, err = rand.Read(tokenBytes); err != nil {
+		return
+	}
+
+	rawToken = base64.URLEncoding.EncodeToString(tokenBytes)
+
+	now := time.Now().UTC()
+	stored = auth.RefreshToken{
+		TokenHash: HashToken(rawToken),
+		UserID:    userID,
+		IssuedAt:  now,
+		ExpiresAt: now.Add(js.refreshTokenTTL),
+		Revoked:   false,
+	}
+	return
+}
+
+func HashToken(rawToken string) string {
+	hash := sha256.Sum256([]byte(rawToken))
+	tokenHash := hex.EncodeToString(hash[:])
+	return tokenHash
 }

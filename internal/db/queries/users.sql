@@ -73,3 +73,8 @@ WHERE
         email ILIKE '%' || sqlc.narg('search') || '%' OR
         name ILIKE '%' || sqlc.narg('search') || '%'
     );
+
+-- name: GetByEmail :one
+SELECT user_id, user_name, name, email, password_hash
+FROM users 
+WHERE EMAIL = sqlc.arg(email) and deleted_at IS NULL;

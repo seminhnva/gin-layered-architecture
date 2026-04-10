@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog"
 	"github.com/seminhnva/gin-layered-architecture/internal/auth"
 	jwtService "github.com/seminhnva/gin-layered-architecture/internal/auth/jwt"
@@ -18,6 +19,7 @@ import (
 	"github.com/seminhnva/gin-layered-architecture/internal/db"
 	"github.com/seminhnva/gin-layered-architecture/internal/db/sqlc"
 	"github.com/seminhnva/gin-layered-architecture/internal/routes"
+	"github.com/seminhnva/gin-layered-architecture/pkg/cache"
 	"github.com/seminhnva/gin-layered-architecture/pkg/logger"
 )
 
@@ -34,7 +36,8 @@ type Application struct {
 }
 
 type ModuleDeps struct {
-	db              *pgxpool.Pool
+	DB              *pgxpool.Pool
+	Redis           *redis.Client
 	Queries         *sqlc.Queries
 	PasswordService auth.Hasher
 	JWTService      auth.JWT
@@ -46,15 +49,24 @@ func NewApplication(cfg *config.Config) (*Application, error) {
 		return nil, fmt.Errorf("create database pool: %w", err)
 	}
 
+	redisClient, err := db.NewRedis(context.Background(), cfg.Redis)
+	cacheRedisService := cache.NewRedisCacheService(redisClient)
+
+	if err != nil {
+		return nil, fmt.Errorf("create redis : %w", err)
+	}
+
 	deps := &ModuleDeps{
 		Queries:         sqlc.New(dbpool),
 		PasswordService: passwordService.NewPasswordService(),
 		JWTService:      jwtService.NewJWTService(cfg.JWT.Secret, cfg.JWT.AccessTokenTTL, cfg.JWT.RefreshTokenTTL, nil),
-		db:              dbpool,
+		DB:              dbpool,
+		Redis:           redisClient,
 	}
 	r := gin.New()
 	modules := []Module{
 		NewUserModule(deps),
+		NewAuthModule(deps, cacheRedisService, cfg.AppEnv),
 	}
 	logOpts := bootstrap.NewLoggerOptions(cfg.Logger)
 

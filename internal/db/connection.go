@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
 	"github.com/seminhnva/gin-layered-architecture/internal/config"
 )
 
@@ -44,6 +45,24 @@ func NewPool(ctx context.Context, dbConfig config.DatabaseConfig) (*pgxpool.Pool
 		return nil, fmt.Errorf("ping postgres: %w", err)
 	}
 	return dbpool, nil
+}
+
+func NewRedis(ctx context.Context, cfg config.RedisConfig) (*redis.Client, error) {
+	client := redis.NewClient(&redis.Options{
+		Addr:     cfg.Addr,
+		Username: cfg.Username,
+		Password: cfg.Password,
+		DB:       cfg.DB,
+	})
+
+	pingCtx, cancel := context.WithTimeout(ctx, defaultPingTimeout)
+	defer cancel()
+
+	if err := client.Ping(pingCtx).Err(); err != nil {
+		return nil, fmt.Errorf("ping redis: %w", err)
+	}
+
+	return client, nil
 }
 
 func DSN(cfg config.DatabaseConfig) string {

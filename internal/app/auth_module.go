@@ -5,16 +5,17 @@ import (
 	"github.com/seminhnva/gin-layered-architecture/internal/repository"
 	"github.com/seminhnva/gin-layered-architecture/internal/routes"
 	"github.com/seminhnva/gin-layered-architecture/internal/service"
+	"github.com/seminhnva/gin-layered-architecture/pkg/cache"
 )
 
 type AuthModule struct {
 	routes routes.Route
 }
 
-func NewAuthModule(deps *ModuleDeps) *AuthModule {
-	authRepo := repository.NewAuthRepo(deps.db, deps.Queries)
-	authSerivce := service.NewAuthService(authRepo, deps.PasswordService)
-	authHanlder := handler.NewAuthHandler(authSerivce)
+func NewAuthModule(deps *ModuleDeps, cache cache.RedisCacheService, env string) *AuthModule {
+	authRepo := repository.NewAuthRepo(deps.DB, deps.Queries)
+	authSerivce := service.NewAuthService(authRepo, deps.PasswordService, deps.JWTService, cache)
+	authHanlder := handler.NewAuthHandler(authSerivce, env)
 	authRoutes := routes.NewAuthRoutes(authHanlder)
 	return &AuthModule{
 		routes: authRoutes,

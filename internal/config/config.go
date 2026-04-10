@@ -48,12 +48,20 @@ type LogConfig struct {
 	LocalTime     bool
 }
 
+type RedisConfig struct {
+	Addr     string
+	Username string
+	Password string
+	DB       int
+}
+
 type Config struct {
 	AppEnv             string
 	Port               string
 	CORSAllowedOrigins []string
 	JWT                JWTConfig
 	DB                 DatabaseConfig
+	Redis              RedisConfig
 	HTTPServer         HTTPServerConfig
 	Logger             LogConfig
 }
@@ -85,6 +93,10 @@ func NewConfig() (*Config, error) {
 		return nil, fmt.Errorf("load logger config: %w", err)
 	}
 
+	redisConfig, err := loadRedisConfig()
+	if err != nil {
+		return nil, fmt.Errorf("load redis config: %w", err)
+	}
 	cfg := &Config{
 		AppEnv:             appEnv,
 		Port:               port,
@@ -93,6 +105,7 @@ func NewConfig() (*Config, error) {
 		DB:                 databaseConfig,
 		HTTPServer:         httpConfig,
 		Logger:             logConfig,
+		Redis:              redisConfig,
 	}
 
 	if err := cfg.Validate(); err != nil {
@@ -325,5 +338,24 @@ func loadLogConfig() (LogConfig, error) {
 		LogMaxAgeDays: logMaxAgeDays,
 		LogCompress:   logCompress,
 		LocalTime:     localTime,
+	}, nil
+}
+
+func loadRedisConfig() (RedisConfig, error) {
+	addr, err := utils.MustGetEnv("REDIS_ADDR")
+	if err != nil {
+		return RedisConfig{}, err
+	}
+
+	db, err := utils.GetEnvInt("REDIS_DB", 0)
+	if err != nil {
+		return RedisConfig{}, err
+	}
+
+	return RedisConfig{
+		Addr:     addr,
+		Username: utils.GetEnv("REDIS_USER", ""),
+		Password: utils.GetEnv("REDIS_PASSWORD", ""),
+		DB:       db,
 	}, nil
 }

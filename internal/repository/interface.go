@@ -25,4 +25,5 @@ type UserListFilter struct {
 }
 
 type AuthRepository interface {
+	GetByEmail(ctx context.Context, email sqlc.GetByEmailParams) (sqlc.GetByEmailRow, error)
 }
