@@ -77,13 +77,14 @@ func (js *JWTService) VerifyAcessToken(tokenString string) (*auth.TokenClaims, e
 	}
 
 	verifiedClaims := &auth.TokenClaims{
-		UserID:   tokenClaims.UserID,
-		Email:    tokenClaims.Email,
-		UserName: tokenClaims.UserName,
-		Name:     tokenClaims.Name,
-		Roles:    tokenClaims.Roles,
-		TokenID:  tokenClaims.ID,
-		Issuer:   tokenClaims.Issuer,
+		UserID:    tokenClaims.UserID,
+		Email:     tokenClaims.Email,
+		UserName:  tokenClaims.UserName,
+		Name:      tokenClaims.Name,
+		Roles:     tokenClaims.Roles,
+		TokenID:   tokenClaims.ID,
+		Issuer:    tokenClaims.Issuer,
+		ExpiresAt: tokenClaims.ExpiresAt.Time,
 	}
 
 	if tokenClaims.IssuedAt != nil {

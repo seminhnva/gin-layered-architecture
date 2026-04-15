@@ -4,14 +4,16 @@ import (
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog"
+	"github.com/seminhnva/gin-layered-architecture/internal/auth"
 	"github.com/seminhnva/gin-layered-architecture/internal/middleware"
+	"github.com/seminhnva/gin-layered-architecture/pkg/cache"
 )
 
 type Route interface {
 	Register(rg *gin.RouterGroup)
 }
 
-func SetUpRouter(corsAllowedOrigins []string, r *gin.Engine, httpLogger, recoveryLogger, rateLimiterLogger *zerolog.Logger, routes ...Route) {
+func SetUpRouter(corsAllowedOrigins []string, r *gin.Engine, jwtService auth.JWT, cache cache.RedisCacheService, httpLogger, recoveryLogger, rateLimiterLogger *zerolog.Logger, routes ...Route) {
 	r.Use(
 		middleware.Recover(recoveryLogger),
 		middleware.RequestID(),
@@ -21,8 +23,19 @@ func SetUpRouter(corsAllowedOrigins []string, r *gin.Engine, httpLogger, recover
 		middleware.Logger(httpLogger),
 		middleware.CORS(corsAllowedOrigins),
 	)
-	api := r.Group("/api/v1")
+	api := r.Group("/api")
+	apiv1 := r.Group("/api/v1")
+	protected := apiv1.Group("")
+	protected.Use(
+		middleware.Auth(jwtService, cache),
+	)
 	for _, route := range routes {
-		route.Register(api)
+		switch route.(type) {
+		case *AuthRoute:
+			route.Register(api)
+		default:
+			route.Register(protected)
+		}
+
 	}
 }

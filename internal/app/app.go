@@ -70,6 +70,7 @@ func NewApplication(cfg *config.Config) (*Application, error) {
 	}
 	logOpts := bootstrap.NewLoggerOptions(cfg.Logger)
 
+	jwtService := jwtService.NewJWTSerivice(cfg.JWT.Secret, cfg.JWT.AccessTokenTTL, cfg.JWT.RefreshTokenTTL)
 	httpLogger, err := logger.InitLogger(string(constants.HttpLogFilePath),
 		logOpts,
 	)
@@ -88,7 +89,7 @@ func NewApplication(cfg *config.Config) (*Application, error) {
 		return nil, fmt.Errorf("init recovery logger: %w", err)
 	}
 
-	routes.SetUpRouter(cfg.CORSAllowedOrigins, r, httpLogger, recoveryLogger, rateLimiterLogger, getModuleRoute(modules)...)
+	routes.SetUpRouter(cfg.CORSAllowedOrigins, r, jwtService, cacheRedisService, httpLogger, recoveryLogger, rateLimiterLogger, getModuleRoute(modules)...)
 	server := &http.Server{
 		Addr:              cfg.HTTPServer.ServerAddress,
 		Handler:           r,

@@ -85,10 +85,16 @@ func (as *authService) Login(ctx context.Context, params dto.LoginRequest) (dto.
 }
 
 func (as *authService) Logout(ctx context.Context, accessToken, rawRefreshToken string) error {
-	_, err := as.jwtService.VerifyAcessToken(accessToken)
+	claims, err := as.jwtService.VerifyAcessToken(accessToken)
 	if err != nil {
 		return apperror.NewError("Invalid access token", apperror.ErrCodeUnauthorized)
 	}
+	blackLstKey := constants.BlackListCachePrefix + claims.TokenID
+	if err := as.cache.Set(blackLstKey, "revoke", time.Until(claims.ExpiresAt)); err != nil {
+		return apperror.NewError("Internal server error", apperror.ErrCodeInternal)
+
+	}
+
 	if err := as.deleteRefreshToken(rawRefreshToken); err != nil {
 		return err
 	}
