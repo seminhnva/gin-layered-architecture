@@ -82,8 +82,13 @@ func NewApplication(cfg *config.Config) (*Application, error) {
 		dbpool.Close()
 		return nil, fmt.Errorf("init recovery logger: %w", err)
 	}
+	rateLimiterLogger, err := logger.InitLogger(string(constants.RateLimiterFilePath), logOpts)
+	if err != nil {
+		dbpool.Close()
+		return nil, fmt.Errorf("init recovery logger: %w", err)
+	}
 
-	routes.SetUpRouter(cfg.CORSAllowedOrigins, r, httpLogger, recoveryLogger, getModuleRoute(modules)...)
+	routes.SetUpRouter(cfg.CORSAllowedOrigins, r, httpLogger, recoveryLogger, rateLimiterLogger, getModuleRoute(modules)...)
 	server := &http.Server{
 		Addr:              cfg.HTTPServer.ServerAddress,
 		Handler:           r,

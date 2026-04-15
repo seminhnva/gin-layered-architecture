@@ -128,7 +128,7 @@ func (as *AuthHandler) ForgotPassword(c *gin.Context) {
 	response.Success(c, http.StatusOK, gin.H{
 		"message": "A password reset link has been sent.",
 	})
-0
+
 }
 func (as *AuthHandler) ResetPassword(c *gin.Context) {
 	var req dto.ResetPasswordRequest
