@@ -18,6 +18,7 @@ import (
 	"github.com/seminhnva/gin-layered-architecture/internal/constants"
 	"github.com/seminhnva/gin-layered-architecture/internal/db"
 	"github.com/seminhnva/gin-layered-architecture/internal/db/sqlc"
+	"github.com/seminhnva/gin-layered-architecture/internal/middleware"
 	"github.com/seminhnva/gin-layered-architecture/internal/routes"
 	"github.com/seminhnva/gin-layered-architecture/pkg/cache"
 	"github.com/seminhnva/gin-layered-architecture/pkg/logger"
@@ -63,14 +64,9 @@ func NewApplication(cfg *config.Config) (*Application, error) {
 		DB:              dbpool,
 		Redis:           redisClient,
 	}
-	r := gin.New()
-	modules := []Module{
-		NewUserModule(deps),
-		NewAuthModule(deps, cacheRedisService, cfg.AppEnv),
-	}
+
 	logOpts := bootstrap.NewLoggerOptions(cfg.Logger)
 
-	jwtService := jwtService.NewJWTSerivice(cfg.JWT.Secret, cfg.JWT.AccessTokenTTL, cfg.JWT.RefreshTokenTTL)
 	httpLogger, err := logger.InitLogger(string(constants.HttpLogFilePath),
 		logOpts,
 	)
@@ -89,7 +85,13 @@ func NewApplication(cfg *config.Config) (*Application, error) {
 		return nil, fmt.Errorf("init recovery logger: %w", err)
 	}
 
-	routes.SetUpRouter(cfg.CORSAllowedOrigins, r, jwtService, cacheRedisService, httpLogger, recoveryLogger, rateLimiterLogger, getModuleRoute(modules)...)
+	r := gin.New()
+	go routesMiddlewareCleanup()
+	modules := []Module{
+		NewUserModule(deps),
+		NewAuthModule(deps, cacheRedisService, cfg.AppEnv, rateLimiterLogger),
+	}
+	routes.SetUpRouter(cfg.CORSAllowedOrigins, r, deps.JWTService, cacheRedisService, httpLogger, recoveryLogger, rateLimiterLogger, getModuleRoute(modules)...)
 	server := &http.Server{
 		Addr:              cfg.HTTPServer.ServerAddress,
 		Handler:           r,
@@ -149,4 +151,8 @@ func getModuleRoute(modules []Module) []routes.Route {
 		routeList[i] = module.Routes()
 	}
 	return routeList
+}
+
+func routesMiddlewareCleanup() {
+	middleware.CleanupClients()
 }

@@ -1,6 +1,7 @@
 package app
 
 import (
+	"github.com/rs/zerolog"
 	"github.com/seminhnva/gin-layered-architecture/internal/api/handler"
 	"github.com/seminhnva/gin-layered-architecture/internal/repository"
 	"github.com/seminhnva/gin-layered-architecture/internal/routes"
@@ -12,11 +13,11 @@ type AuthModule struct {
 	routes routes.Route
 }
 
-func NewAuthModule(deps *ModuleDeps, cache cache.RedisCacheService, env string) *AuthModule {
+func NewAuthModule(deps *ModuleDeps, cache cache.RedisCacheService, env string, rateLimiterLogger *zerolog.Logger) *AuthModule {
 	userRepo := repository.NewUserRepo(deps.DB, deps.Queries)
 	authSerivce := service.NewAuthService(userRepo, deps.PasswordService, deps.JWTService, cache)
 	authHanlder := handler.NewAuthHandler(authSerivce, env)
-	authRoutes := routes.NewAuthRoutes(authHanlder)
+	authRoutes := routes.NewAuthRoutes(authHanlder, rateLimiterLogger)
 	return &AuthModule{
 		routes: authRoutes,
 	}

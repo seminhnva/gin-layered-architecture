@@ -19,7 +19,7 @@ func SetUpRouter(corsAllowedOrigins []string, r *gin.Engine, jwtService auth.JWT
 		middleware.RequestID(),
 		middleware.Trace(),
 		gzip.Gzip(gzip.DefaultCompression),
-		middleware.RateLimiter(rateLimiterLogger),
+		middleware.RateLimiter(rateLimiterLogger, middleware.DefaultRateLimitPolicy),
 		middleware.Logger(httpLogger),
 		middleware.CORS(corsAllowedOrigins),
 	)
