@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"os"
 	"strconv"
@@ -87,4 +89,16 @@ func GetSliceEnv(key string) []string {
 	}
 
 	return values
+}
+
+func NormalizeString(text string) string {
+	return strings.ToLower(strings.TrimSpace(text))
+}
+
+func GenerateRandomString(n int) (string, error) {
+	bytes := make([]byte, n)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
+	}
+	return base64.URLEncoding.EncodeToString(bytes), nil
 }

@@ -7,11 +7,19 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog"
+	"github.com/seminhnva/gin-layered-architecture/internal/auth"
+	jwtService "github.com/seminhnva/gin-layered-architecture/internal/auth/jwt"
+	passwordService "github.com/seminhnva/gin-layered-architecture/internal/auth/password"
 	"github.com/seminhnva/gin-layered-architecture/internal/bootstrap"
 	"github.com/seminhnva/gin-layered-architecture/internal/config"
 	"github.com/seminhnva/gin-layered-architecture/internal/constants"
+	"github.com/seminhnva/gin-layered-architecture/internal/db"
+	"github.com/seminhnva/gin-layered-architecture/internal/db/sqlc"
 	"github.com/seminhnva/gin-layered-architecture/internal/routes"
+	"github.com/seminhnva/gin-layered-architecture/pkg/cache"
 	"github.com/seminhnva/gin-layered-architecture/pkg/logger"
 )
 
@@ -24,12 +32,41 @@ type Application struct {
 	router *gin.Engine
 	module []Module
 	server *http.Server
+	dbpool *pgxpool.Pool
+}
+
+type ModuleDeps struct {
+	DB              *pgxpool.Pool
+	Redis           *redis.Client
+	Queries         *sqlc.Queries
+	PasswordService auth.Hasher
+	JWTService      auth.JWT
 }
 
 func NewApplication(cfg *config.Config) (*Application, error) {
+	dbpool, err := db.NewPool(context.Background(), cfg.DB)
+	if err != nil {
+		return nil, fmt.Errorf("create database pool: %w", err)
+	}
+
+	redisClient, err := db.NewRedis(context.Background(), cfg.Redis)
+	if err != nil {
+		dbpool.Close()
+		return nil, fmt.Errorf("create redis : %w", err)
+	}
+	cacheRedisService := cache.NewRedisCacheService(redisClient)
+
+	deps := &ModuleDeps{
+		Queries:         sqlc.New(dbpool),
+		PasswordService: passwordService.NewPasswordService(),
+		JWTService:      jwtService.NewJWTService(cfg.JWT.Secret, cfg.JWT.AccessTokenTTL, cfg.JWT.RefreshTokenTTL),
+		DB:              dbpool,
+		Redis:           redisClient,
+	}
 	r := gin.New()
 	modules := []Module{
-		NewUserModule(),
+		NewUserModule(deps),
+		NewAuthModule(deps, cacheRedisService, cfg.AppEnv),
 	}
 	logOpts := bootstrap.NewLoggerOptions(cfg.Logger)
 
@@ -37,14 +74,21 @@ func NewApplication(cfg *config.Config) (*Application, error) {
 		logOpts,
 	)
 	if err != nil {
+		dbpool.Close()
 		return nil, fmt.Errorf("init http logger: %w", err)
 	}
 	recoveryLogger, err := logger.InitLogger(string(constants.RecoveryLogFilePath), logOpts)
 	if err != nil {
+		dbpool.Close()
+		return nil, fmt.Errorf("init recovery logger: %w", err)
+	}
+	rateLimiterLogger, err := logger.InitLogger(string(constants.RateLimiterFilePath), logOpts)
+	if err != nil {
+		dbpool.Close()
 		return nil, fmt.Errorf("init recovery logger: %w", err)
 	}
 
-	routes.SetUpRouter(cfg.CORSAllowedOrigins, r, httpLogger, recoveryLogger, getModuleRoute(modules)...)
+	routes.SetUpRouter(cfg.CORSAllowedOrigins, r, httpLogger, recoveryLogger, rateLimiterLogger, getModuleRoute(modules)...)
 	server := &http.Server{
 		Addr:              cfg.HTTPServer.ServerAddress,
 		Handler:           r,
@@ -59,10 +103,17 @@ func NewApplication(cfg *config.Config) (*Application, error) {
 		router: r,
 		module: modules,
 		server: server,
+		dbpool: dbpool,
 	}, nil
 }
 
 func (a *Application) Run(ctx context.Context, appLogger *zerolog.Logger) error {
+	defer func() {
+		if a.dbpool != nil {
+			a.dbpool.Close()
+		}
+	}()
+
 	errCh := make(chan error, 1)
 	go func() {
 		appLogger.Info().Msgf("HTTP Server listening on %s", a.config.HTTPServer.ServerAddress)
