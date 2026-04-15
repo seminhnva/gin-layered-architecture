@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
+	"log"
 	"time"
 
 	"github.com/seminhnva/gin-layered-architecture/internal/auth"
@@ -137,10 +139,59 @@ func (as *authService) RefreshToken(ctx context.Context, rawRefreshToken string)
 	}
 	return tokenInfo, nil
 }
-func (as *authService) ForgotPassword(ctx context.Context) error {
+func (as *authService) ForgotPassword(ctx context.Context, email string) error {
+	email = utils.NormalizeString(email)
+
+	user, err := as.userRepo.GetByEmail(ctx, sqlc.GetByEmailParams{
+		Email: email,
+	})
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
+		return err
+	}
+	randomCode, err := utils.GenerateRandomString(16)
+	if err != nil {
+		return apperror.NewError("Internal server error", apperror.ErrCodeInternal)
+	}
+	resetLink := fmt.Sprintf("https://yourdomain.com/reset-password?code=%s", randomCode)
+	log.Println(resetLink)
+	cacheKey := constants.ResetPasswordPrefix + randomCode
+	resetPasswordInfo := auth.ResetPassword{
+		UserID:   user.UserID,
+		IssuedAt: time.Now(),
+	}
+	err = as.cache.Set(cacheKey, resetPasswordInfo, 5*time.Minute)
+
+	if err != nil {
+		return apperror.NewError("Internal server error", apperror.ErrCodeInternal)
+	}
 	return nil
 }
-func (as *authService) ResetPassword(ctx context.Context) error {
+func (as *authService) ResetPassword(ctx context.Context, token, newPassword string) error {
+	cacheKey := constants.ResetPasswordPrefix + token
+	var resetPasswordInfo auth.ResetPassword
+	if err := as.cache.Get(cacheKey, &resetPasswordInfo); err != nil {
+		return apperror.NewError("Reset code is wrong", apperror.ErrCodeBadRequest)
+	}
+	hashPassword, err := as.passwordService.HashPassword(newPassword)
+	if err != nil {
+		return apperror.NewError("Internal server error", apperror.ErrCodeInternal)
+
+	}
+	_, err = as.userRepo.ResetPassword(ctx, sqlc.ResetPasswordParams{
+		UserID:       resetPasswordInfo.UserID,
+		PasswordHash: hashPassword,
+	})
+	if err != nil {
+		return apperror.WrapError(err, "Fail to update password", apperror.ErrCodeInternal)
+
+	}
+	if err = as.cache.Del(cacheKey); err != nil {
+		return apperror.NewError("Internal server error", apperror.ErrCodeInternal)
+	}
+
 	return nil
 }
 

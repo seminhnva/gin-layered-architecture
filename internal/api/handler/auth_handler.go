@@ -114,5 +114,34 @@ func (as *AuthHandler) RefreshToken(c *gin.Context) {
 	response.Success(c, http.StatusOK, tokenData)
 }
 
-func (as *AuthHandler) ForgotPassword(c *gin.Context) {}
-func (as *AuthHandler) ResetPassword(c *gin.Context)  {}
+func (as *AuthHandler) ForgotPassword(c *gin.Context) {
+	var req dto.ForgotPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, validation.HandleValidationError(err))
+		return
+	}
+	err := as.service.ForgotPassword(c.Request.Context(), req.Email)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+	response.Success(c, http.StatusOK, gin.H{
+		"message": "A password reset link has been sent.",
+	})
+0
+}
+func (as *AuthHandler) ResetPassword(c *gin.Context) {
+	var req dto.ResetPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, validation.HandleValidationError(err))
+		return
+	}
+
+	if err := as.service.ResetPassword(c.Request.Context(), req.Token, req.NewPassword); err != nil {
+		response.Error(c, err)
+		return
+	}
+	response.Success(c, http.StatusOK, gin.H{
+		"message": "Password reset successful.",
+	})
+}

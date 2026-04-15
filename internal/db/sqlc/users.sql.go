@@ -223,6 +223,37 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]ListUse
 	return items, nil
 }
 
+const resetPassword = `-- name: ResetPassword :one
+UPDATE users
+SET password_hash = $2
+WHERE user_id = $1 AND deleted_at IS NULL
+RETURNING user_id, user_name, name, email
+`
+
+type ResetPasswordParams struct {
+	UserID       uuid.UUID `json:"user_id"`
+	PasswordHash string    `json:"password_hash"`
+}
+
+type ResetPasswordRow struct {
+	UserID   uuid.UUID `json:"user_id"`
+	UserName string    `json:"user_name"`
+	Name     string    `json:"name"`
+	Email    string    `json:"email"`
+}
+
+func (q *Queries) ResetPassword(ctx context.Context, arg ResetPasswordParams) (ResetPasswordRow, error) {
+	row := q.db.QueryRow(ctx, resetPassword, arg.UserID, arg.PasswordHash)
+	var i ResetPasswordRow
+	err := row.Scan(
+		&i.UserID,
+		&i.UserName,
+		&i.Name,
+		&i.Email,
+	)
+	return i, err
+}
+
 const restoreUser = `-- name: RestoreUser :one
 UPDATE users
 SET deleted_at = NULL

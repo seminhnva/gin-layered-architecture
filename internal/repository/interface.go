@@ -16,6 +16,7 @@ type UserRepository interface {
 	Update(ctx context.Context, params sqlc.UpdateUserByIDParams) (sqlc.UpdateUserByIDRow, error)
 	SoftDelete(ctx context.Context, ID uuid.UUID) error
 	GetByEmail(ctx context.Context, params sqlc.GetByEmailParams) (sqlc.GetByEmailRow, error)
+	ResetPassword(ctx context.Context, params sqlc.ResetPasswordParams) (sqlc.ResetPasswordRow, error)
 }
 type UserListFilter struct {
 	Page   int32

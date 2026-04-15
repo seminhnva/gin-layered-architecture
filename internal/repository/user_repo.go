@@ -150,3 +150,8 @@ func (ur *UserRepo) GetByEmail(ctx context.Context, params sqlc.GetByEmailParams
 	userInfor, err := ur.queries.GetByEmail(ctx, params)
 	return userInfor, err
 }
+
+func (ur *UserRepo) ResetPassword(ctx context.Context, params sqlc.ResetPasswordParams) (sqlc.ResetPasswordRow, error) {
+	userInfo, err := ur.queries.ResetPassword(ctx, params)
+	return userInfo, err
+}

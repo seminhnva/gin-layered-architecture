@@ -3,7 +3,6 @@ package logger
 import (
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"time"
 
@@ -62,7 +61,7 @@ func NewFileLogger(logFilePath, level string, maxSize, maxBackups, maxAge int, c
 		LocalTime:  localTime,
 	}
 	var write io.Writer
-	write = zerolog.MultiLevelWriter(os.Stdout, rollingFile)
+	write = zerolog.MultiLevelWriter(rollingFile)
 	logger := zerolog.New(write).Level(lv).With().Timestamp().Logger()
 
 	return &logger, nil

@@ -40,6 +40,11 @@ type RefreshToken struct {
 	RevokedAt *time.Time
 }
 
+type ResetPassword struct {
+	UserID   uuid.UUID
+	IssuedAt time.Time
+}
+
 type Hasher interface {
 	HashPassword(plainPassword string) (string, error)
 	CheckPasswordHash(plainPassword, hashed string) (bool, error)

@@ -10,13 +10,12 @@ import (
 
 type Querier interface {
 	CountUsers(ctx context.Context, arg CountUsersParams) (int64, error)
-	CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) (CreateRefreshTokenRow, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error)
-	DeleteRefreshTokenById(ctx context.Context, arg DeleteRefreshTokenByIdParams) (int64, error)
 	FindUserByID(ctx context.Context, arg FindUserByIDParams) (FindUserByIDRow, error)
 	GetByEmail(ctx context.Context, arg GetByEmailParams) (GetByEmailRow, error)
 	HardDeleteUser(ctx context.Context, arg HardDeleteUserParams) (int64, error)
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]ListUsersRow, error)
+	ResetPassword(ctx context.Context, arg ResetPasswordParams) (ResetPasswordRow, error)
 	RestoreUser(ctx context.Context, arg RestoreUserParams) (RestoreUserRow, error)
 	SoftDeleteUser(ctx context.Context, arg SoftDeleteUserParams) (int64, error)
 	UpdateUserByID(ctx context.Context, arg UpdateUserByIDParams) (UpdateUserByIDRow, error)

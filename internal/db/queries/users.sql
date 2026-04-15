@@ -78,3 +78,9 @@ WHERE
 SELECT user_id, user_name, name, email, password_hash
 FROM users 
 WHERE EMAIL = sqlc.arg(email) and deleted_at IS NULL;
+
+-- name: ResetPassword :one 
+UPDATE users
+SET password_hash = $2
+WHERE user_id = $1 AND deleted_at IS NULL
+RETURNING user_id, user_name, name, email;
