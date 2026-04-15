@@ -20,6 +20,43 @@ var (
 	clients = make(map[string]*Client)
 )
 
+func RateLimiter(rateLimiterLogger *zerolog.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ip := getClientIP(c)
+		limiter := getRateLimiter(ip)
+
+		if !limiter.Allow() {
+			if ShouldlogRateLimit(ip) {
+				rateLimiterLogger.Warn().
+					Str("path", c.Request.URL.Path).
+					Str("method", c.Request.Method).
+					Str("client_ip", c.ClientIP()).
+					Str("user_agent", c.Request.UserAgent()).
+					Msg("ratelimiter exceed")
+			}
+
+			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
+				"errror": "Too many request",
+			})
+			return
+		}
+		c.Next()
+	}
+}
+
+func CleanupClients() {
+	for {
+		time.Sleep(time.Minute)
+		mu.Lock()
+		for ip, client := range clients {
+			if time.Since(client.lastSeen) > 3*time.Minute {
+				delete(clients, ip)
+			}
+		}
+		mu.Unlock()
+	}
+}
+
 func getClientIP(ctx *gin.Context) string {
 	ip := ctx.ClientIP()
 	if ip == "" {
@@ -45,43 +82,6 @@ func getRateLimiter(ip string) *rate.Limiter {
 	}
 	client.lastSeen = time.Now()
 	return client.limiter
-}
-
-func CleanupClients() {
-	for {
-		time.Sleep(time.Minute)
-		mu.Lock()
-		for ip, client := range clients {
-			if time.Since(client.lastSeen) > 3*time.Minute {
-				delete(clients, ip)
-			}
-		}
-		mu.Unlock()
-	}
-}
-
-func RateLimiter(rateLimiterLogger *zerolog.Logger) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		ip := getClientIP(c)
-		limiter := getRateLimiter(ip)
-
-		if !limiter.Allow() {
-			if ShouldlogRateLimit(ip) {
-				rateLimiterLogger.Warn().
-					Str("path", c.Request.URL.Path).
-					Str("method", c.Request.Method).
-					Str("client_ip", c.ClientIP()).
-					Str("user_agent", c.Request.UserAgent()).
-					Msg("ratelimiter exceed")
-			}
-
-			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
-				"errror": "Too many request",
-			})
-			return
-		}
-		c.Next()
-	}
 }
 
 var rateLimitLogCache = sync.Map{}
